@@ -1,10 +1,10 @@
 // app/analytics/page.js
 'use client'
-import { formatPrice } from '../utils/currency'
 import { useState, useEffect } from 'react'
 import Sidebar from '../components/Sidebar'
 import TopBar from '../components/TopBar'
 import { SalesChart, CategoryChart, StockPieChart, TopProductsChart } from '../components/Charts'
+import { formatPrice } from '../../utils/currency'
 
 export default function AnalyticsPage() {
   const [analyticsData, setAnalyticsData] = useState({

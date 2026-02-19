@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Sidebar from '../components/Sidebar'
 import TopBar from '../components/TopBar'
-import { formatPrice } from '../utils/currency'
+import { formatPrice } from '../../utils/currency'
 
 export default function InventoryPage() {
   const [products, setProducts] = useState([])

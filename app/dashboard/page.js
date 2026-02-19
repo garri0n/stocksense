@@ -5,7 +5,7 @@ import Sidebar from '../components/Sidebar'
 import TopBar from '../components/TopBar'
 import ProtectedRoute from '../components/ProtectedRoute'
 import { useAuth } from '../context/AuthContext'
-import { formatPrice } from '../utils/currency'
+import { formatPrice } from '../../utils/currency'
 
 function DashboardContent() {
   const { user } = useAuth()
