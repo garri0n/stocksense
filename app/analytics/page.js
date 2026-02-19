@@ -59,12 +59,12 @@ export default function AnalyticsPage() {
         <div className="stats-grid">
           <div className="stat-card">
             <div className="stat-title">Total Sales (30 Days)</div>
-            <div className="stat-value">${totalSales.toLocaleString()}</div>
+            <div className="stat-value">₱{totalSales.toLocaleString()}</div>
             <div className="stat-change">↑ 15.3% from last period</div>
           </div>
           <div className="stat-card">
             <div className="stat-title">Avg Daily Sales</div>
-            <div className="stat-value">${avgDailySales.toFixed(0)}</div>
+            <div className="stat-value">₱{avgDailySales.toFixed(0)}</div>
             <div className="stat-change">↗️ +8.2%</div>
           </div>
           <div className="stat-card">
@@ -118,7 +118,7 @@ export default function AnalyticsPage() {
               {analyticsData.dailySales.slice(-7).reverse().map((day, index) => (
                 <tr key={index}>
                   <td>{new Date(day.date).toLocaleDateString()}</td>
-                  <td>${parseFloat(day.total || 0).toLocaleString()}</td>
+                  <td>₱{parseFloat(day.total || 0).toLocaleString()}</td>
                   <td>{Math.floor(day.total / 100) || 1}</td>
                   <td>
                     <div style={{ 
@@ -129,7 +129,7 @@ export default function AnalyticsPage() {
                       overflow: 'hidden'
                     }}>
                       <div style={{ 
-                        width: `${(day.total / totalSales) * 100}%`, 
+                        width: `₱{(day.total / totalSales * 100).toFixed(2)}%`, 
                         height: '100%', 
                         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                         borderRadius: '4px'

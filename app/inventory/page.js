@@ -203,7 +203,7 @@ export default function InventoryPage() {
                   </select>
                 </div>
                 <div className="form-group">
-                  <label>Price ($)</label>
+                  <label>Price (₱)</label>
                   <input
                     type="number"
                     step="0.01"

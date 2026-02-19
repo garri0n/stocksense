@@ -94,7 +94,7 @@ function DashboardContent() {
           </div>
           <div className="stat-card">
             <div className="stat-title">Total Value</div>
-            <div className="stat-value">${(stats.totalValue || 0).toLocaleString()}</div>
+            <div className="stat-value">₱{(stats.totalValue || 0).toLocaleString()}</div>
             <div className="stat-change">↑ 8% from last month</div>
           </div>
           <div className="stat-card">
