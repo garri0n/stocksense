@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import Logo from './components/Logo'
-import { useAuth } from './context/AuthContext'
+import Logo from '../components/Logo'
+import { useAuth } from '../context/AuthContext'
 
 export default function RegisterPage() {
   const router = useRouter()
