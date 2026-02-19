@@ -1,9 +1,9 @@
-// app/page.js (Login Page)
+// app/page.js
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Logo } from './components'
+import Logo from './components/Logo'
 import { useAuth } from './context/AuthContext'
 
 export default function LoginPage() {
@@ -18,7 +18,6 @@ export default function LoginPage() {
   const [showDemo, setShowDemo] = useState(false)
 
   useEffect(() => {
-    // Redirect if already logged in
     if (isAuthenticated) {
       router.push('/dashboard')
     }

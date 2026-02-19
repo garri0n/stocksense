@@ -1,7 +1,8 @@
 // app/dashboard/page.js
 'use client'
 import { useState, useEffect } from 'react'
-import { Sidebar, TopBar } from '../components'
+import Sidebar from '../components/Sidebar'
+import TopBar from '../components/TopBar'
 import ProtectedRoute from '../components/ProtectedRoute'
 import { useAuth } from '../context/AuthContext'
 
@@ -37,7 +38,7 @@ function DashboardContent() {
       <div className="dashboard-layout">
         <Sidebar />
         <div className="main-content">
-          <TopBar title={`${user?.username}'s Dashboard`} />
+          <TopBar title={`${user?.username || 'Bro'}'s Dashboard`} />
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
             <div className="loading-spinner"></div>
           </div>
@@ -50,7 +51,7 @@ function DashboardContent() {
     <div className="dashboard-layout">
       <Sidebar />
       <div className="main-content">
-        <TopBar title={`${user?.username}'s Dashboard`} />
+        <TopBar title={`${user?.username || 'Bro'}'s Dashboard`} />
         
         <div className="stats-grid">
           <div className="stat-card">
