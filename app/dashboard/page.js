@@ -1,10 +1,12 @@
 // app/dashboard/page.js
 'use client'
 import { useState, useEffect } from 'react'
-import Sidebar from '../components/Sidebar'
-import TopBar from '../components/TopBar'
+import { Sidebar, TopBar } from '../components'
+import ProtectedRoute from '../components/ProtectedRoute'
+import { useAuth } from '../context/AuthContext'
 
-export default function Dashboard() {
+function DashboardContent() {
+  const { user } = useAuth()
   const [stats, setStats] = useState({
     totalProducts: 0,
     lowStock: 0,
@@ -35,7 +37,7 @@ export default function Dashboard() {
       <div className="dashboard-layout">
         <Sidebar />
         <div className="main-content">
-          <TopBar title="Bro's Dashboard" />
+          <TopBar title={`${user?.username}'s Dashboard`} />
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
             <div className="loading-spinner"></div>
           </div>
@@ -48,7 +50,7 @@ export default function Dashboard() {
     <div className="dashboard-layout">
       <Sidebar />
       <div className="main-content">
-        <TopBar title="Bro's Dashboard" />
+        <TopBar title={`${user?.username}'s Dashboard`} />
         
         <div className="stats-grid">
           <div className="stat-card">
@@ -110,5 +112,13 @@ export default function Dashboard() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function DashboardPage() {
+  return (
+    <ProtectedRoute>
+      <DashboardContent />
+    </ProtectedRoute>
   )
 }

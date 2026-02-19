@@ -1,44 +1,51 @@
 // app/page.js (Login Page)
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import Logo from './components/Logo'
+import { Logo } from './components'
+import { useAuth } from './context/AuthContext'
 
 export default function LoginPage() {
   const router = useRouter()
+  const { login, isAuthenticated } = useAuth()
   const [formData, setFormData] = useState({
     username: '',
     password: ''
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showDemo, setShowDemo] = useState(false)
+
+  useEffect(() => {
+    // Redirect if already logged in
+    if (isAuthenticated) {
+      router.push('/dashboard')
+    }
+  }, [isAuthenticated, router])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
     setError('')
 
-    try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        localStorage.setItem('user', JSON.stringify(data.user))
-        router.push('/dashboard')
-      } else {
-        setError(data.message || 'Invalid credentials')
-      }
-    } catch (error) {
-      setError('An error occurred. Please try again.')
-    } finally {
-      setLoading(false)
+    const result = await login(formData.username, formData.password)
+    
+    if (result.success) {
+      router.push('/dashboard')
+    } else {
+      setError(result.error || 'Login failed')
     }
+    
+    setLoading(false)
+  }
+
+  const fillDemoCredentials = () => {
+    setFormData({
+      username: 'bro',
+      password: 'password123'
+    })
+    setShowDemo(false)
   }
 
   return (
@@ -63,6 +70,36 @@ export default function LoginPage() {
             textAlign: 'center'
           }}>
             {error}
+          </div>
+        )}
+        
+        {showDemo && (
+          <div style={{
+            padding: '15px',
+            background: '#e0f2fe',
+            color: '#0369a1',
+            borderRadius: '8px',
+            marginBottom: '20px',
+            fontSize: '14px'
+          }}>
+            <p style={{ marginBottom: '10px', fontWeight: '600' }}>Demo Credentials:</p>
+            <p>Username: bro</p>
+            <p>Password: password123</p>
+            <button
+              onClick={fillDemoCredentials}
+              style={{
+                marginTop: '10px',
+                padding: '8px 16px',
+                background: '#0284c7',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                width: '100%'
+              }}
+            >
+              Use Demo Account
+            </button>
           </div>
         )}
         
@@ -100,6 +137,23 @@ export default function LoginPage() {
           >
             {loading ? 'Logging in...' : 'LOGIN'}
           </button>
+          
+          <div style={{ textAlign: 'center', marginBottom: '15px' }}>
+            <button
+              type="button"
+              onClick={() => setShowDemo(!showDemo)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#667eea',
+                fontSize: '14px',
+                cursor: 'pointer',
+                textDecoration: 'underline'
+              }}
+            >
+              {showDemo ? 'Hide' : 'Show'} Demo Credentials
+            </button>
+          </div>
           
           <div className="login-footer">
             Don't have an account yet?{' '}

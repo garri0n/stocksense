@@ -1,37 +1,42 @@
-// app/components/TopBar.js (Enhanced version with confirmation)
+// app/components/TopBar.js
 'use client'
-import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '../context/AuthContext'
+import Logo from './Logo'
 
 export default function TopBar({ title }) {
   const router = useRouter()
+  const { user, logout } = useAuth()
   const [showConfirm, setShowConfirm] = useState(false)
 
-  const handleLogout = () => {
-    // Clear any authentication state
-    localStorage.removeItem('user')
-    localStorage.removeItem('token')
-    sessionStorage.clear()
-    // Redirect to login page
-    router.push('/')
+  const handleLogout = async () => {
+    await logout()
+  }
+
+  const getInitials = (username) => {
+    return username ? username.charAt(0).toUpperCase() : 'U'
   }
 
   return (
     <div className="top-bar">
-      <h2 className="page-title">{title}</h2>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+        <div className="mobile-logo">
+          <Logo showText={false} />
+        </div>
+        <h2 className="page-title">{title}</h2>
+      </div>
       <div className="user-menu">
-        <span>👋 Welcome, Bro!</span>
-        <div className="user-avatar">B</div>
-        <button 
-          onClick={() => setShowConfirm(true)} 
-          className="logout-btn"
-        >
+        <span>👋 Welcome, {user?.username || 'User'}!</span>
+        <div className="user-avatar" title={user?.email}>
+          {getInitials(user?.username)}
+        </div>
+        <button onClick={() => setShowConfirm(true)} className="logout-btn">
           <span className="logout-icon">🚪</span>
           Logout
         </button>
       </div>
 
-      {/* Logout Confirmation Modal */}
       {showConfirm && (
         <div className="modal-overlay">
           <div className="modal-content">
