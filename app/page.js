@@ -51,7 +51,7 @@ export default function LoginPage() {
     <div className="login-container">
       <div className="login-card">
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
-          <Logo />
+          <h1 style={{ color: '#007bff', fontSize: '32px' }}>StockSense AI</h1>
         </div>
         <div className="login-header">
           <h1>Welcome Back!</h1>
@@ -77,7 +77,7 @@ export default function LoginPage() {
     )}
   </div>
 )}
-        
+          
         {showDemo && (
           <div style={{
             padding: '15px',
