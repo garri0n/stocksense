@@ -13,6 +13,7 @@ import {
   LineElement
 } from 'chart.js';
 import { Bar, Pie, Line } from 'react-chartjs-2';
+import { formatPrice } from '../../utils/currency';
 
 ChartJS.register(
   CategoryScale,
@@ -31,7 +32,7 @@ export function SalesChart({ data }) {
     labels: data.map(item => item.date),
     datasets: [
       {
-        label: 'Daily Sales',
+        label: 'Daily Sales (₱)',
         data: data.map(item => item.total),
         backgroundColor: 'rgba(102, 126, 234, 0.5)',
         borderColor: 'rgba(102, 126, 234, 1)',
@@ -51,6 +52,20 @@ export function SalesChart({ data }) {
       title: {
         display: true,
         text: 'Sales Overview (Last 7 Days)'
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            let label = context.dataset.label || '';
+            if (label) {
+              label += ': ';
+            }
+            if (context.parsed.y !== null) {
+              label += formatPrice(context.parsed.y);
+            }
+            return label;
+          }
+        }
       }
     },
     scales: {
@@ -58,7 +73,7 @@ export function SalesChart({ data }) {
         beginAtZero: true,
         ticks: {
           callback: function(value) {
-            return '$' + value;
+            return '₱' + value;
           }
         }
       }
@@ -77,7 +92,7 @@ export function CategoryChart({ data }) {
     labels: data.map(item => item.category),
     datasets: [
       {
-        label: 'Sales by Category',
+        label: 'Sales by Category (₱)',
         data: data.map(item => item.total_sales),
         backgroundColor: [
           'rgba(102, 126, 234, 0.8)',
@@ -108,6 +123,20 @@ export function CategoryChart({ data }) {
       title: {
         display: true,
         text: 'Sales by Category'
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            let label = context.dataset.label || '';
+            if (label) {
+              label += ': ';
+            }
+            if (context.parsed.y !== null) {
+              label += formatPrice(context.parsed.y);
+            }
+            return label;
+          }
+        }
       }
     }
   };
@@ -119,6 +148,7 @@ export function CategoryChart({ data }) {
   );
 }
 
+// StockPieChart remains the same (doesn't show prices)
 export function StockPieChart({ data }) {
   const chartData = {
     labels: data.map(item => item.status),

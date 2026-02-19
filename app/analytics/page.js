@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Sidebar from '../components/Sidebar'
 import TopBar from '../components/TopBar'
 import { SalesChart, CategoryChart, StockPieChart, TopProductsChart } from '../components/Charts'
-import { formatPrice } from '../../utils/currency'
+import { formatPrice } from '../../utils/currency'  // Import the currency formatter
 
 export default function AnalyticsPage() {
   const [analyticsData, setAnalyticsData] = useState({
@@ -50,6 +50,7 @@ export default function AnalyticsPage() {
   const avgDailySales = totalSales / (analyticsData.dailySales.length || 1)
   const totalProducts = analyticsData.stockDistribution.reduce((sum, item) => sum + item.count, 0)
   const lowStockCount = analyticsData.stockDistribution.find(item => item.status === 'Low Stock')?.count || 0
+  const stockHealth = totalProducts > 0 ? ((totalProducts - lowStockCount) / totalProducts * 100).toFixed(0) : 'N/A'
 
   return (
     <div className="dashboard-layout">
@@ -59,26 +60,23 @@ export default function AnalyticsPage() {
         
         <div className="stats-grid">
           <div className="stat-card">
-            <div className="stat-title">Total Sales (30 Days)</div>
+            <div className="stat-title">TOTAL SALES (30 DAYS)</div>
             <div className="stat-value">{formatPrice(totalSales)}</div>
-
             <div className="stat-change">↑ 15.3% from last period</div>
           </div>
           <div className="stat-card">
-            <div className="stat-title">Avg Daily Sales</div>
+            <div className="stat-title">AVG DAILY SALES</div>
             <div className="stat-value">{formatPrice(avgDailySales)}</div>
             <div className="stat-change">↗️ +8.2%</div>
           </div>
           <div className="stat-card">
-            <div className="stat-title">Low Stock Items</div>
+            <div className="stat-title">LOW STOCK ITEMS</div>
             <div className="stat-value">{lowStockCount}</div>
             <div className="stat-change">⚠️ Needs attention</div>
           </div>
           <div className="stat-card">
-            <div className="stat-title">Stock Health</div>
-            <div className="stat-value">
-              {((totalProducts - lowStockCount) / totalProducts * 100).toFixed(0)}%
-            </div>
+            <div className="stat-title">STOCK HEALTH</div>
+            <div className="stat-value">{stockHealth}%</div>
             <div className="stat-change">✓ Good standing</div>
           </div>
         </div>
@@ -120,8 +118,8 @@ export default function AnalyticsPage() {
               {analyticsData.dailySales.slice(-7).reverse().map((day, index) => (
                 <tr key={index}>
                   <td>{new Date(day.date).toLocaleDateString()}</td>
-                  <td>₱{parseFloat(day.total || 0).toLocaleString()}</td>
-                  <td>{Math.floor(day.total / 100) || 1}</td>
+                  <td>{formatPrice(day.total || 0)}</td>
+                  <td>{Math.floor((day.total || 0) / 100) || 1}</td>
                   <td>
                     <div style={{ 
                       width: '100px', 
@@ -131,7 +129,7 @@ export default function AnalyticsPage() {
                       overflow: 'hidden'
                     }}>
                       <div style={{ 
-                        width: `${(day.total / totalSales * 100).toFixed(2)}%`, 
+                        width: `${totalSales > 0 ? ((day.total || 0) / totalSales) * 100 : 0}%`, 
                         height: '100%', 
                         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                         borderRadius: '4px'
