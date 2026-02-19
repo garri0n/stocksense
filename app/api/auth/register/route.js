@@ -6,6 +6,16 @@ export async function POST(request) {
   try {
     const { username, password, email, dateOfBirth } = await request.json();
 
+    console.log('Registration attempt:', { username, email });
+
+    // Validate input
+    if (!username || !password || !email) {
+      return NextResponse.json({
+        success: false,
+        message: 'Username, password, and email are required'
+      }, { status: 400 });
+    }
+
     // Check if user already exists
     const [existingUsers] = await pool.query(
       'SELECT * FROM users WHERE username = ? OR email = ?',
@@ -22,7 +32,7 @@ export async function POST(request) {
     // Insert new user
     const [result] = await pool.query(
       'INSERT INTO users (username, password, email, date_of_birth) VALUES (?, ?, ?, ?)',
-      [username, password, email, dateOfBirth]
+      [username, password, email, dateOfBirth || null]
     );
 
     return NextResponse.json({
@@ -33,9 +43,10 @@ export async function POST(request) {
 
   } catch (error) {
     console.error('Registration error:', error);
+    
     return NextResponse.json({
       success: false,
-      message: 'An error occurred during registration'
+      message: 'Database connection error. Please make sure MySQL is running in XAMPP.'
     }, { status: 500 });
   }
 }

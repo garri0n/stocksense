@@ -59,18 +59,24 @@ export default function LoginPage() {
         </div>
         
         {error && (
-          <div style={{
-            padding: '10px',
-            background: '#fef2f2',
-            color: '#ef4444',
-            borderRadius: '8px',
-            marginBottom: '20px',
-            fontSize: '14px',
-            textAlign: 'center'
-          }}>
-            {error}
-          </div>
-        )}
+  <div style={{
+    padding: '15px',
+    background: '#fef2f2',
+    color: '#991b1b',
+    borderRadius: '8px',
+    marginBottom: '20px',
+    fontSize: '14px',
+    border: '1px solid #fecaca'
+  }}>
+    <strong style={{ display: 'block', marginBottom: '5px' }}>Error:</strong>
+    {error}
+    {error.includes('MySQL') && (
+      <div style={{ marginTop: '10px', fontSize: '13px' }}>
+        💡 Make sure XAMPP is running with MySQL started
+      </div>
+    )}
+  </div>
+)}
         
         {showDemo && (
           <div style={{
