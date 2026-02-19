@@ -1,5 +1,6 @@
 // app/analytics/page.js
 'use client'
+import { formatPrice } from '../utils/currency'
 import { useState, useEffect } from 'react'
 import Sidebar from '../components/Sidebar'
 import TopBar from '../components/TopBar'
@@ -59,12 +60,13 @@ export default function AnalyticsPage() {
         <div className="stats-grid">
           <div className="stat-card">
             <div className="stat-title">Total Sales (30 Days)</div>
-            <div className="stat-value">₱{totalSales.toLocaleString()}</div>
+            <div className="stat-value">{formatPrice(totalSales)}</div>
+
             <div className="stat-change">↑ 15.3% from last period</div>
           </div>
           <div className="stat-card">
             <div className="stat-title">Avg Daily Sales</div>
-            <div className="stat-value">₱{avgDailySales.toFixed(0)}</div>
+            <div className="stat-value">{formatPrice(avgDailySales)}</div>
             <div className="stat-change">↗️ +8.2%</div>
           </div>
           <div className="stat-card">

@@ -3,12 +3,13 @@
 import { useState, useEffect } from 'react'
 import Sidebar from '../components/Sidebar'
 import TopBar from '../components/TopBar'
+import { formatPrice } from '../utils/currency'
 
 export default function InventoryPage() {
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
-  const [modalMode, setModalMode] = useState('add') // 'add' or 'edit'
+  const [modalMode, setModalMode] = useState('add')
   const [selectedProduct, setSelectedProduct] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
@@ -34,7 +35,6 @@ export default function InventoryPage() {
       const data = await response.json()
       setProducts(data)
       
-      // Extract unique categories
       const uniqueCategories = [...new Set(data.map(p => p.category).filter(Boolean))]
       setCategories(uniqueCategories)
     } catch (error) {
@@ -138,7 +138,6 @@ export default function InventoryPage() {
     setSelectedProduct(null)
   }
 
-  // Filter products based on search and category
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.sku?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -146,7 +145,6 @@ export default function InventoryPage() {
     return matchesSearch && matchesCategory
   })
 
-  // Calculate stats
   const totalItems = filteredProducts.reduce((sum, p) => sum + (p.current_stock || 0), 0)
   const uniqueCategories = [...new Set(filteredProducts.map(p => p.category))].length
   const lowStock = filteredProducts.filter(p => (p.current_stock || 0) < (p.reorder_threshold || 10)).length
@@ -172,7 +170,6 @@ export default function InventoryPage() {
       <div className="main-content">
         <TopBar title="Inventory Management" />
         
-        {/* Stats Cards */}
         <div className="stats-grid">
           <div className="stat-card">
             <div className="stat-title">Total Items</div>
@@ -196,7 +193,6 @@ export default function InventoryPage() {
           </div>
         </div>
 
-        {/* Search and Filter Bar */}
         <div style={{ 
           display: 'flex', 
           gap: '15px', 
@@ -251,7 +247,6 @@ export default function InventoryPage() {
           </button>
         </div>
 
-        {/* Inventory Table */}
         <div className="inventory-table">
           <div className="table-header">
             <h3 className="table-title">Inventory List ({filteredProducts.length} products)</h3>
@@ -286,7 +281,7 @@ export default function InventoryPage() {
                       <div style={{ fontWeight: '600' }}>{item.current_stock}</div>
                       <div style={{ fontSize: '11px', color: '#666' }}>units</div>
                     </td>
-                    <td>${parseFloat(item.price).toFixed(2)}</td>
+                    <td>{formatPrice(item.price || 0)}</td>
                     <td>{item.reorder_threshold}</td>
                     <td>
                       {item.current_stock === 0 ? (
@@ -395,7 +390,7 @@ export default function InventoryPage() {
                     </datalist>
                   </div>
                   <div className="form-group">
-                    <label>Price ($) *</label>
+                    <label>Price (₱) *</label>
                     <input
                       type="number"
                       step="0.01"
