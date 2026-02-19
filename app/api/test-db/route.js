@@ -79,7 +79,7 @@ export default function TestDBPage() {
           <ul style={{ marginTop: '10px', lineHeight: '2' }}>
             <li>📊 Users: {data.stats?.users || 0}</li>
             <li>📦 Products: {data.stats?.totalProducts || 0}</li>
-            <li>💰 Total Sales: ${data.stats?.totalSales || 0}</li>
+            <li>💰 Total Sales: ₱{data.stats?.totalSales || 0}</li>
           </ul>
         </div>
       )}

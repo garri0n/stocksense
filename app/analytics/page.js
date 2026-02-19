@@ -129,7 +129,7 @@ export default function AnalyticsPage() {
                       overflow: 'hidden'
                     }}>
                       <div style={{ 
-                        width: `₱{(day.total / totalSales * 100).toFixed(2)}%`, 
+                        width: `${(day.total / totalSales * 100).toFixed(2)}%`, 
                         height: '100%', 
                         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                         borderRadius: '4px'
