@@ -1,9 +1,7 @@
 // app/layout.js
-import { Inter } from 'next/font/google'
-import { AuthProvider } from './context/AuthContext'
 import './globals.css'
-
-const inter = Inter({ subsets: ['latin'] })
+import { AuthProvider } from './context/AuthContext'
+import ErrorBoundary from './components/ErrorBoundary'
 
 export const metadata = {
   title: 'StockSense AI',
@@ -13,10 +11,12 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+      <body>
+        <ErrorBoundary>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </ErrorBoundary>
       </body>
     </html>
   )

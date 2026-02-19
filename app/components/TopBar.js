@@ -10,13 +10,17 @@ export default function TopBar({ title }) {
   const { user, logout } = useAuth()
   const [showConfirm, setShowConfirm] = useState(false)
 
-  const handleLogout = async () => {
-    await logout()
+  const handleLogout = () => {
+    logout()
   }
 
   const getInitials = (username) => {
-    return username ? username.charAt(0).toUpperCase() : 'U'
+    return username && username.length > 0 ? username.charAt(0).toUpperCase() : 'U'
   }
+
+  // Safe username display
+  const displayName = user?.username || 'User'
+  const userEmail = user?.email || ''
 
   return (
     <div className="top-bar">
@@ -27,9 +31,9 @@ export default function TopBar({ title }) {
         <h2 className="page-title">{title}</h2>
       </div>
       <div className="user-menu">
-        <span>👋 Welcome, {user?.username || 'User'}!</span>
-        <div className="user-avatar" title={user?.email}>
-          {getInitials(user?.username)}
+        <span>👋 Welcome, {displayName}!</span>
+        <div className="user-avatar" title={userEmail}>
+          {getInitials(displayName)}
         </div>
         <button onClick={() => setShowConfirm(true)} className="logout-btn">
           <span className="logout-icon">🚪</span>

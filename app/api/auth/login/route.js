@@ -6,25 +6,11 @@ export async function POST(request) {
   try {
     const { username, password } = await request.json();
 
-    console.log('Login attempt for username:', username);
-
-    // Validate input
-    if (!username || !password) {
-      return NextResponse.json({
-        success: false,
-        message: 'Username and password are required'
-      }, { status: 400 });
-    }
-
-    // Query the database
     const [users] = await pool.query(
       'SELECT * FROM users WHERE username = ?',
       [username]
     );
 
-    console.log('Database result:', users);
-
-    // Check if user exists
     if (!users || users.length === 0) {
       return NextResponse.json({
         success: false,
@@ -34,7 +20,6 @@ export async function POST(request) {
 
     const user = users[0];
 
-    // Check password (in production, use bcrypt)
     if (user.password !== password) {
       return NextResponse.json({
         success: false,
@@ -42,22 +27,25 @@ export async function POST(request) {
       }, { status: 401 });
     }
 
-    // Remove password from response
-    const { password: _, ...userWithoutPassword } = user;
+    // Return a consistent user object structure
+    const userData = {
+      id: user.id,
+      username: user.username,
+      email: user.email || '',
+      date_of_birth: user.date_of_birth || ''
+    };
 
-    // Return success with user data
     return NextResponse.json({
       success: true,
       message: 'Login successful',
-      user: userWithoutPassword
+      user: userData
     });
 
   } catch (error) {
-    console.error('Login error details:', error);
-    
+    console.error('Login error:', error);
     return NextResponse.json({
       success: false,
-      message: 'Database connection error. Please make sure MySQL is running in XAMPP.'
+      message: 'An error occurred during login'
     }, { status: 500 });
   }
 }

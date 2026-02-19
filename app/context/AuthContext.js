@@ -1,32 +1,30 @@
 // app/context/AuthContext.js
 'use client'
-import { createContext, useContext, useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { createContext, useContext, useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
-const AuthContext = createContext();
+const AuthContext = createContext()
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const router = useRouter();
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
+    // Check for stored user on mount
     try {
-      // Check if user is stored in localStorage (for demo)
-      const storedUser = localStorage.getItem('user');
+      const storedUser = localStorage.getItem('user')
       if (storedUser) {
-        setUser(JSON.parse(storedUser));
+        const parsedUser = JSON.parse(storedUser)
+        setUser(parsedUser)
       }
     } catch (error) {
-      console.error('Auth check error:', error);
+      console.error('Error loading user from localStorage:', error)
+      localStorage.removeItem('user') // Clear corrupted data
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }, [])
 
   const login = async (username, password) => {
     try {
@@ -34,22 +32,30 @@ export function AuthProvider({ children }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
-      });
+      })
 
-      const data = await response.json();
+      const data = await response.json()
 
-      if (data.success) {
-        setUser(data.user);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        return { success: true };
+      if (data.success && data.user) {
+        // Ensure user object has all expected fields
+        const userData = {
+          id: data.user.id || 0,
+          username: data.user.username || username,
+          email: data.user.email || '',
+          date_of_birth: data.user.date_of_birth || ''
+        }
+        
+        setUser(userData)
+        localStorage.setItem('user', JSON.stringify(userData))
+        return { success: true }
       } else {
-        return { success: false, error: data.message };
+        return { success: false, error: data.message || 'Login failed' }
       }
     } catch (error) {
-      console.error('Login error:', error);
-      return { success: false, error: 'An error occurred during login' };
+      console.error('Login error:', error)
+      return { success: false, error: 'Network error. Please try again.' }
     }
-  };
+  }
 
   const register = async (userData) => {
     try {
@@ -57,31 +63,21 @@ export function AuthProvider({ children }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userData)
-      });
+      })
 
-      const data = await response.json();
-
-      if (data.success) {
-        return { success: true, message: data.message };
-      } else {
-        return { success: false, error: data.message };
-      }
+      const data = await response.json()
+      return data
     } catch (error) {
-      console.error('Registration error:', error);
-      return { success: false, error: 'An error occurred during registration' };
+      console.error('Registration error:', error)
+      return { success: false, error: 'Network error. Please try again.' }
     }
-  };
+  }
 
-  const logout = async () => {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-      setUser(null);
-      localStorage.removeItem('user');
-      router.push('/');
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
-  };
+  const logout = () => {
+    setUser(null)
+    localStorage.removeItem('user')
+    router.push('/')
+  }
 
   return (
     <AuthContext.Provider value={{
@@ -94,13 +90,13 @@ export function AuthProvider({ children }) {
     }}>
       {children}
     </AuthContext.Provider>
-  );
+  )
 }
 
 export const useAuth = () => {
-  const context = useContext(AuthContext);
+  const context = useContext(AuthContext)
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error('useAuth must be used within an AuthProvider')
   }
-  return context;
-};
+  return context
+}
