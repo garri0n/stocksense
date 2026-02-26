@@ -1,51 +1,55 @@
 // app/api/debug-db/route.js
 import { NextResponse } from 'next/server';
-import pool from '@/lib/db';
+import mysql from 'mysql2/promise';
 
 export async function GET() {
-  // Show what credentials we're using (without exposing full password)
   const rawUsername = process.env.TIDB_USER || 'not set';
-  const formattedUsername = rawUsername.includes('.') && !rawUsername.startsWith("'") 
-    ? `'${rawUsername}'` 
-    : rawUsername;
-
+  
+  // Format username with quotes (same as in db.js)
+  let formattedUser = rawUsername.replace(/'/g, '');
+  formattedUser = `'${formattedUser}'`;
+  
   const debug = {
     environment: process.env.NODE_ENV,
     variables: {
-      TIDB_HOST: process.env.TIDB_HOST ? process.env.TIDB_HOST : '✗ Missing',
+      TIDB_HOST: process.env.TIDB_HOST || '✗ Missing',
       TIDB_USER: {
         raw: rawUsername,
-        formatted: formattedUsername,
-        length: rawUsername.length
+        formatted: formattedUser,
+        length: formattedUser.length,
+        charCodes: formattedUser.split('').map(c => c.charCodeAt(0))
       },
-      TIDB_PASSWORD: process.env.TIDB_PASSWORD ? '✓ Set (hidden)' : '✗ Missing',
+      TIDB_PASSWORD: process.env.TIDB_PASSWORD ? '✓ Set' : '✗ Missing',
       TIDB_DATABASE: process.env.TIDB_DATABASE || '✗ Missing',
       TIDB_PORT: process.env.TIDB_PORT || '✗ Missing',
     },
-    connection: { success: false, error: null, details: null }
+    connection: { success: false, error: null }
   };
 
+  // Try direct connection without using the pool
   try {
-    // Test connection with a simple query
-    const [result] = await pool.query('SELECT 1 + 1 as solution');
-    const [version] = await pool.query('SELECT VERSION() as version');
-    const [databases] = await pool.query('SHOW DATABASES');
-    const [users] = await pool.query('SELECT COUNT(*) as count FROM users');
+    const connection = await mysql.createConnection({
+      host: process.env.TIDB_HOST,
+      user: formattedUser,
+      password: process.env.TIDB_PASSWORD,
+      database: process.env.TIDB_DATABASE,
+      port: parseInt(process.env.TIDB_PORT) || 4000,
+      ssl: { rejectUnauthorized: true }
+    });
+    
+    const [rows] = await connection.execute('SELECT 1 + 1 as solution');
+    await connection.end();
     
     debug.connection.success = true;
-    debug.connection.details = {
-      test: result[0].solution === 2 ? '✅ Query works' : '❌ Query failed',
-      version: version[0].version,
-      databases: databases.map(db => Object.values(db)[0]).slice(0, 5),
-      userCount: users[0].count
-    };
+    debug.connection.result = rows;
     
   } catch (error) {
     debug.connection.error = {
       message: error.message,
       code: error.code,
-      sqlMessage: error.sqlMessage,
-      errno: error.errno
+      errno: error.errno,
+      sqlState: error.sqlState,
+      sqlMessage: error.sqlMessage
     };
   }
 
