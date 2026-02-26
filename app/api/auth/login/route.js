@@ -20,6 +20,33 @@ export async function POST(request) {
       }, { status: 500 });
     }
 
+    // Check if users table exists
+    try {
+      const [tables] = await pool.query("SHOW TABLES LIKE 'users'");
+      if (tables.length === 0) {
+        console.log('📊 Users table does not exist, creating it...');
+        await pool.query(`
+          CREATE TABLE IF NOT EXISTS users (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            username VARCHAR(50) UNIQUE NOT NULL,
+            email VARCHAR(100) UNIQUE NOT NULL,
+            password VARCHAR(255) NOT NULL,
+            date_of_birth DATE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )
+        `);
+        
+        // Insert demo user
+        await pool.query(
+          'INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
+          ['bro', 'bro@stocksense.ai', 'password123']
+        );
+        console.log('✅ Created users table and demo user');
+      }
+    } catch (tableError) {
+      console.error('Error checking/creating table:', tableError);
+    }
+
     // Query the database
     const [users] = await pool.query(
       'SELECT * FROM users WHERE username = ?',
@@ -37,7 +64,7 @@ export async function POST(request) {
 
     const user = users[0];
 
-    // Check password (in production, use bcrypt)
+    // Check password
     if (user.password !== password) {
       return NextResponse.json({
         success: false,
