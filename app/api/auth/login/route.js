@@ -25,22 +25,26 @@ export async function POST(request) {
       const [tables] = await pool.query("SHOW TABLES LIKE 'users'");
       if (tables.length === 0) {
         console.log('📊 Users table does not exist, creating it...');
+        // Ensure users table exists
         await pool.query(`
-          CREATE TABLE IF NOT EXISTS users (
-            id INT PRIMARY KEY AUTO_INCREMENT,
-            username VARCHAR(50) UNIQUE NOT NULL,
-            email VARCHAR(100) UNIQUE NOT NULL,
-            password VARCHAR(255) NOT NULL,
-            date_of_birth DATE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          )
-        `);
-        
-        // Insert demo user
+        CREATE TABLE IF NOT EXISTS users (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        username VARCHAR(50) UNIQUE NOT NULL,
+        email VARCHAR(100) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        date_of_birth DATE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+        // Ensure demo user exists
+        const [users] = await pool.query('SELECT * FROM users WHERE username = "bro"');
+        if (users.length === 0) {
         await pool.query(
-          'INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
-          ['bro', 'bro@stocksense.ai', 'password123']
+        'INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
+        ['bro', 'bro@stocksense.ai', 'password123']
         );
+      }
         console.log('✅ Created users table and demo user');
       }
     } catch (tableError) {

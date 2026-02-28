@@ -3,55 +3,64 @@ import { NextResponse } from 'next/server';
 import mysql from 'mysql2/promise';
 
 export async function GET() {
-  const rawUsername = process.env.TIDB_USER || 'not set';
-  
-  // Format username with quotes (same as in db.js)
-  let formattedUser = rawUsername.replace(/'/g, '');
-  formattedUser = `'${formattedUser}'`;
-  
-  const debug = {
+  const results = {
     environment: process.env.NODE_ENV,
     variables: {
-      TIDB_HOST: process.env.TIDB_HOST || '✗ Missing',
-      TIDB_USER: {
-        raw: rawUsername,
-        formatted: formattedUser,
-        length: formattedUser.length,
-        charCodes: formattedUser.split('').map(c => c.charCodeAt(0))
-      },
-      TIDB_PASSWORD: process.env.TIDB_PASSWORD ? '✓ Set' : '✗ Missing',
-      TIDB_DATABASE: process.env.TIDB_DATABASE || '✗ Missing',
-      TIDB_PORT: process.env.TIDB_PORT || '✗ Missing',
+      host: process.env.TIDB_HOST,
+      user: process.env.TIDB_USER,
+      database: process.env.TIDB_DATABASE,
+      port: process.env.TIDB_PORT,
+      passwordSet: !!process.env.TIDB_PASSWORD
     },
-    connection: { success: false, error: null }
+    tests: []
   };
 
-  // Try direct connection without using the pool
+  // Test 1: Try with NO special formatting, just what's in env
   try {
-    const connection = await mysql.createConnection({
+    const conn1 = await mysql.createConnection({
       host: process.env.TIDB_HOST,
-      user: formattedUser,
+      user: process.env.TIDB_USER,
       password: process.env.TIDB_PASSWORD,
       database: process.env.TIDB_DATABASE,
       port: parseInt(process.env.TIDB_PORT) || 4000,
-      ssl: { rejectUnauthorized: true }
+      ssl: { rejectUnauthorized: false }
     });
-    
-    const [rows] = await connection.execute('SELECT 1 + 1 as solution');
-    await connection.end();
-    
-    debug.connection.success = true;
-    debug.connection.result = rows;
-    
-  } catch (error) {
-    debug.connection.error = {
-      message: error.message,
-      code: error.code,
-      errno: error.errno,
-      sqlState: error.sqlState,
-      sqlMessage: error.sqlMessage
-    };
+    await conn1.end();
+    results.tests.push({ method: 'Raw env user', success: true });
+  } catch (e) {
+    results.tests.push({ method: 'Raw env user', success: false, error: e.message });
   }
 
-  return NextResponse.json(debug);
+  // Test 2: Try connecting without database specified
+  try {
+    const conn2 = await mysql.createConnection({
+      host: process.env.TIDB_HOST,
+      user: process.env.TIDB_USER,
+      password: process.env.TIDB_PASSWORD,
+      port: parseInt(process.env.TIDB_PORT) || 4000,
+      ssl: { rejectUnauthorized: false }
+    });
+    await conn2.end();
+    results.tests.push({ method: 'No database specified', success: true });
+  } catch (e) {
+    results.tests.push({ method: 'No database specified', success: false, error: e.message });
+  }
+
+  // Test 3: Try with SSL disabled (not recommended but for testing)
+  try {
+    const conn3 = await mysql.createConnection({
+      host: process.env.TIDB_HOST,
+      user: process.env.TIDB_USER,
+      password: process.env.TIDB_PASSWORD,
+      database: process.env.TIDB_DATABASE,
+      port: parseInt(process.env.TIDB_PORT) || 4000,
+      ssl: false
+    });
+    await conn3.end();
+    results.tests.push({ method: 'SSL disabled', success: true });
+  } catch (e) {
+    results.tests.push({ method: 'SSL disabled', success: false, error: e.message });
+  }
+
+  return NextResponse.json(results);
 }
