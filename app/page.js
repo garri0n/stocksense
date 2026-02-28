@@ -15,7 +15,6 @@ export default function LoginPage() {
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [showDemo, setShowDemo] = useState(false)
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -33,25 +32,17 @@ export default function LoginPage() {
     if (result.success) {
       router.push('/dashboard')
     } else {
-      setError(result.error || 'Login failed')
+      setError(result.error || 'Invalid username or password')
     }
     
     setLoading(false)
-  }
-
-  const fillDemoCredentials = () => {
-    setFormData({
-      username: 'bro',
-      password: 'password123'
-    })
-    setShowDemo(false)
   }
 
   return (
     <div className="login-container">
       <div className="login-card">
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
-          <h1 style={{ color: '#007bff', fontSize: '32px' }}>StockSense AI</h1>
+          <Logo />
         </div>
         <div className="login-header">
           <h1>Welcome Back!</h1>
@@ -59,52 +50,16 @@ export default function LoginPage() {
         </div>
         
         {error && (
-  <div style={{
-    padding: '15px',
-    background: '#fef2f2',
-    color: '#991b1b',
-    borderRadius: '8px',
-    marginBottom: '20px',
-    fontSize: '14px',
-    border: '1px solid #fecaca'
-  }}>
-    <strong style={{ display: 'block', marginBottom: '5px' }}>Error:</strong>
-    {error}
-    {error.includes('MySQL') && (
-      <div style={{ marginTop: '10px', fontSize: '13px' }}>
-        💡 Make sure XAMPP is running with MySQL started
-      </div>
-    )}
-  </div>
-)}
-          
-        {showDemo && (
           <div style={{
-            padding: '15px',
-            background: '#e0f2fe',
-            color: '#0369a1',
+            padding: '10px',
+            background: '#fef2f2',
+            color: '#ef4444',
             borderRadius: '8px',
             marginBottom: '20px',
-            fontSize: '14px'
+            fontSize: '14px',
+            textAlign: 'center'
           }}>
-            <p style={{ marginBottom: '10px', fontWeight: '600' }}>Demo Credentials:</p>
-            <p>Username: bro</p>
-            <p>Password: password123</p>
-            <button
-              onClick={fillDemoCredentials}
-              style={{
-                marginTop: '10px',
-                padding: '8px 16px',
-                background: '#0284c7',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                width: '100%'
-              }}
-            >
-              Use Demo Account
-            </button>
+            {error}
           </div>
         )}
         
@@ -142,23 +97,6 @@ export default function LoginPage() {
           >
             {loading ? 'Logging in...' : 'LOGIN'}
           </button>
-          
-          <div style={{ textAlign: 'center', marginBottom: '15px' }}>
-            <button
-              type="button"
-              onClick={() => setShowDemo(!showDemo)}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#667eea',
-                fontSize: '14px',
-                cursor: 'pointer',
-                textDecoration: 'underline'
-              }}
-            >
-              {showDemo ? 'Hide' : 'Show'} Demo Credentials
-            </button>
-          </div>
           
           <div className="login-footer">
             Don't have an account yet?{' '}

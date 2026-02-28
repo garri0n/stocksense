@@ -20,7 +20,7 @@ export function AuthProvider({ children }) {
       }
     } catch (error) {
       console.error('Error loading user from localStorage:', error)
-      localStorage.removeItem('user') // Clear corrupted data
+      localStorage.removeItem('user')
     } finally {
       setLoading(false)
     }
@@ -37,12 +37,10 @@ export function AuthProvider({ children }) {
       const data = await response.json()
 
       if (data.success && data.user) {
-        // Ensure user object has all expected fields
         const userData = {
-          id: data.user.id || 0,
-          username: data.user.username || username,
-          email: data.user.email || '',
-          date_of_birth: data.user.date_of_birth || ''
+          id: data.user.id,
+          username: data.user.username,
+          email: data.user.email || ''
         }
         
         setUser(userData)
@@ -53,7 +51,7 @@ export function AuthProvider({ children }) {
       }
     } catch (error) {
       console.error('Login error:', error)
-      return { success: false, error: 'Network error. Please try again.' }
+      return { success: false, error: 'Connection error. Please try again.' }
     }
   }
 
@@ -69,7 +67,7 @@ export function AuthProvider({ children }) {
       return data
     } catch (error) {
       console.error('Registration error:', error)
-      return { success: false, error: 'Network error. Please try again.' }
+      return { success: false, error: 'Connection error. Please try again.' }
     }
   }
 
