@@ -1,86 +1,59 @@
-// app/api/analytics/route.js
+// app/api/ai/analytics/route.js
+import { getAIResponse, aiRateLimiter } from '@/lib/ai';
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
 
-export async function GET() {
+export async function POST(request) {
   try {
-    // Sales by category
-    const [salesByCategory] = await pool.query(`
-      SELECT p.category, COALESCE(SUM(s.quantity * s.unit_price), 0) as total_sales
-      FROM products p
-      LEFT JOIN sales s ON p.id = s.product_id AND s.sale_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-      GROUP BY p.category
+    // Fetch your data
+    const [salesData] = await pool.query(`
+      SELECT DATE(sale_date) as date, SUM(total_amount) as daily_total
+      FROM sales 
+      WHERE sale_date >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+      GROUP BY DATE(sale_date)
+    `);
+    
+    const [productData] = await pool.query(`
+      SELECT category, COUNT(*) as count, SUM(current_stock * price) as value
+      FROM products 
+      GROUP BY category
     `);
 
-    // Daily sales for last 7 days
-    const [dailySales] = await pool.query(`
-      SELECT 
-        COALESCE(DATE(s.sale_date), CURDATE()) as date, 
-        COALESCE(SUM(s.total_amount), 0) as total
-      FROM (SELECT CURDATE() as date UNION SELECT DATE_SUB(CURDATE(), INTERVAL 1 DAY) UNION
-            SELECT DATE_SUB(CURDATE(), INTERVAL 2 DAY) UNION SELECT DATE_SUB(CURDATE(), INTERVAL 3 DAY) UNION
-            SELECT DATE_SUB(CURDATE(), INTERVAL 4 DAY) UNION SELECT DATE_SUB(CURDATE(), INTERVAL 5 DAY) UNION
-            SELECT DATE_SUB(CURDATE(), INTERVAL 6 DAY)) as dates
-      LEFT JOIN sales s ON DATE(s.sale_date) = dates.date
-      GROUP BY dates.date
-      ORDER BY dates.date
-    `);
-
-    // Top products
-    const [topProducts] = await pool.query(`
-      SELECT p.name, COALESCE(SUM(s.quantity), 0) as total_sold
-      FROM products p
-      LEFT JOIN sales s ON p.id = s.product_id AND s.sale_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-      GROUP BY p.id, p.name
-      ORDER BY total_sold DESC
-      LIMIT 5
-    `);
-
-    // Stock distribution
-    const [stockDistribution] = await pool.query(`
-      SELECT 
-        CASE 
-          WHEN current_stock = 0 THEN 'Out of Stock'
-          WHEN current_stock < reorder_threshold THEN 'Low Stock'
-          ELSE 'In Stock'
-        END as status,
-        COUNT(*) as count
-      FROM products
-      GROUP BY status
-    `);
-
-    // If no distribution data, provide defaults
-    if (stockDistribution.length === 0) {
-      stockDistribution.push(
-        { status: 'In Stock', count: 0 },
-        { status: 'Low Stock', count: 0 },
-        { status: 'Out of Stock', count: 0 }
+    // Use rate limiter to stay within free tier
+    const insights = await aiRateLimiter.schedule(async () => {
+      return await getAIResponse(
+        "You are a senior data analyst for an inventory management system. Provide concise, actionable insights.",
+        `Analyze this sales and inventory data and return a JSON object with:
+         - topPerformingCategory: string
+         - salesTrend: "up" | "down" | "stable"
+         - recommendation: string
+         - alertLevel: "low" | "medium" | "high"
+         
+         Data: Sales=${JSON.stringify(salesData)}, Products=${JSON.stringify(productData)}`
       );
+    });
+
+    if (!insights) {
+      return NextResponse.json({ 
+        success: false, 
+        message: "AI temporarily unavailable" 
+      });
     }
 
+    // Parse the JSON response (Gemini is good at JSON!)
+    const parsed = JSON.parse(insights);
+    
     return NextResponse.json({
-      salesByCategory: salesByCategory || [],
-      dailySales: dailySales || [],
-      topProducts: topProducts || [],
-      stockDistribution: stockDistribution || []
+      success: true,
+      ...parsed,
+      timestamp: new Date().toISOString()
     });
 
   } catch (error) {
-    console.error('Analytics error:', error);
-    
-    // Return default data
-    return NextResponse.json({
-      salesByCategory: [],
-      dailySales: Array(7).fill().map((_, i) => ({
-        date: new Date(Date.now() - i * 86400000).toISOString().split('T')[0],
-        total: 0
-      })),
-      topProducts: [],
-      stockDistribution: [
-        { status: 'In Stock', count: 0 },
-        { status: 'Low Stock', count: 0 },
-        { status: 'Out of Stock', count: 0 }
-      ]
-    });
+    console.error('Analytics AI error:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: error.message 
+    }, { status: 500 });
   }
 }
