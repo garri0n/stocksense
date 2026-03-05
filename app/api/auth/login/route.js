@@ -6,6 +6,15 @@ export async function POST(request) {
   try {
     const { username, password } = await request.json();
 
+    const connection = await mysql.createConnection({
+      host: 'gateway01.ap-southeast-1.prod.aws.tidbcloud.com',
+      user: "'2doub9SDN1b3FY2.root'",
+      password: process.env.TIDB_PASSWORD, // Make sure this is set!
+      database: 'stocksense_ai',
+      port: 4000,
+      ssl: { rejectUnauthorized: false }
+    });
+
     console.log('Login attempt for username:', username);
 
     // First, ensure users table exists
@@ -74,5 +83,5 @@ export async function POST(request) {
       success: false,
       message: 'Database connection error'
     }, { status: 500 });
-  }
+  } 
 }
