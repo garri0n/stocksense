@@ -10,34 +10,15 @@ export async function POST(request) {
 
     // Validate input
     if (!username || !email || !password) {
+      console.log('❌ Missing fields');
       return NextResponse.json({
         success: false,
         message: 'All fields are required'
       }, { status: 400 });
     }
 
-    if (username.length < 3) {
-      return NextResponse.json({
-        success: false,
-        message: 'Username must be at least 3 characters'
-      }, { status: 400 });
-    }
-
-    if (password.length < 6) {
-      return NextResponse.json({
-        success: false,
-        message: 'Password must be at least 6 characters'
-      }, { status: 400 });
-    }
-
-    if (!email.includes('@')) {
-      return NextResponse.json({
-        success: false,
-        message: 'Please enter a valid email'
-      }, { status: 400 });
-    }
-
     // Connect to TiDB
+    console.log('🔌 Connecting to TiDB...');
     const connection = await mysql.createConnection({
       host: process.env.TIDB_HOST,
       user: '2doub9SDN1b3FY2.root',
@@ -47,6 +28,8 @@ export async function POST(request) {
       ssl: { rejectUnauthorized: false }
     });
 
+    console.log('✅ Connected to TiDB');
+
     // Check if username or email exists
     const [existing] = await connection.execute(
       'SELECT username, email FROM users WHERE username = ? OR email = ?',
@@ -55,26 +38,21 @@ export async function POST(request) {
 
     if (existing.length > 0) {
       await connection.end();
-      const existingUser = existing[0];
-      if (existingUser.username === username) {
-        return NextResponse.json({
-          success: false,
-          message: 'Username already taken'
-        }, { status: 400 });
-      } else {
-        return NextResponse.json({
-          success: false,
-          message: 'Email already registered'
-        }, { status: 400 });
-      }
+      console.log('❌ User already exists:', existing[0]);
+      return NextResponse.json({
+        success: false,
+        message: 'Username or email already exists'
+      }, { status: 400 });
     }
 
     // Insert new user
+    console.log('📝 Inserting new user...');
     const [result] = await connection.execute(
       'INSERT INTO users (username, email, password, date_of_birth) VALUES (?, ?, ?, ?)',
       [username, email, password, dateOfBirth || null]
     );
 
+    console.log('✅ User inserted with ID:', result.insertId);
     await connection.end();
 
     return NextResponse.json({
@@ -83,26 +61,10 @@ export async function POST(request) {
     }, { status: 201 });
 
   } catch (error) {
-    console.error('Registration error:', error);
-    
-    // Check for specific MySQL errors
-    if (error.code === 'ER_DUP_ENTRY') {
-      return NextResponse.json({
-        success: false,
-        message: 'Username or email already exists'
-      }, { status: 400 });
-    }
-    
-    if (error.code === 'ER_BAD_NULL_ERROR') {
-      return NextResponse.json({
-        success: false,
-        message: 'Please fill in all required fields'
-      }, { status: 400 });
-    }
-
+    console.error('❌ Registration error:', error);
     return NextResponse.json({
       success: false,
-      message: 'Registration failed. Please try again.'
+      message: 'Registration failed: ' + error.message
     }, { status: 500 });
   }
 }
