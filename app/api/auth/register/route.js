@@ -8,13 +8,17 @@ export async function POST(request) {
 
     console.log('Registration attempt:', { username, email });
 
-    // Validate input
-    if (!username || !password || !email) {
-      return NextResponse.json({
-        success: false,
-        message: 'Username, password, and email are required'
-      }, { status: 400 });
-    }
+    // Ensure users table exists
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        username VARCHAR(50) UNIQUE NOT NULL,
+        email VARCHAR(100) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        date_of_birth DATE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
 
     // Check if user already exists
     const [existingUsers] = await pool.query(
@@ -43,10 +47,9 @@ export async function POST(request) {
 
   } catch (error) {
     console.error('Registration error:', error);
-    
     return NextResponse.json({
       success: false,
-      message: 'Database connection error. Please make sure MySQL is running in XAMPP.'
+      message: 'Registration failed'
     }, { status: 500 });
   }
 }
