@@ -1,87 +1,75 @@
 // app/api/auth/login/route.js
 import { NextResponse } from 'next/server';
-import pool from '@/lib/db';
+import mysql from 'mysql2/promise';
 
 export async function POST(request) {
   try {
     const { username, password } = await request.json();
 
+    // Direct connection with NO quotes
     const connection = await mysql.createConnection({
-      host: 'gateway01.ap-southeast-1.prod.aws.tidbcloud.com',
-      user: "'2doub9SDN1b3FY2.root'",
-      password: process.env.TIDB_PASSWORD, // Make sure this is set!
+      host: process.env.TIDB_HOST,
+      user: '2doub9SDN1b3FY2.root', // Hardcode for testing, NO quotes!
+      password: process.env.TIDB_PASSWORD,
       database: 'stocksense_ai',
       port: 4000,
       ssl: { rejectUnauthorized: false }
     });
 
-    console.log('Login attempt for username:', username);
-
-    // First, ensure users table exists
-    await pool.query(`
+    // Check if users table exists
+    await connection.execute(`
       CREATE TABLE IF NOT EXISTS users (
         id INT PRIMARY KEY AUTO_INCREMENT,
         username VARCHAR(50) UNIQUE NOT NULL,
         email VARCHAR(100) UNIQUE NOT NULL,
-        password VARCHAR(255) NOT NULL,
-        date_of_birth DATE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        password VARCHAR(255) NOT NULL
       )
     `);
 
     // Check if user exists
-    const [users] = await pool.query(
+    const [users] = await connection.execute(
       'SELECT * FROM users WHERE username = ?',
       [username]
     );
 
-    // If user doesn't exist, create it (for demo purposes)
-    if (!users || users.length === 0) {
-      console.log('User not found, creating demo user...');
-      
-      // Create the user
-      await pool.query(
+    // If using 'stocksense' user, create it
+    if (username === 'stocksense') {
+      await connection.execute(
         'INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
-        [username, 'bro@stocksense.ai', password]
+        ['stocksense', 'stocksense@example.com', password]
       );
       
-      // Fetch the newly created user
-      const [newUsers] = await pool.query(
+      const [newUser] = await connection.execute(
         'SELECT * FROM users WHERE username = ?',
         [username]
       );
       
-      const newUser = newUsers[0];
-      const { password: _, ...userWithoutPassword } = newUser;
+      await connection.end();
       
       return NextResponse.json({
         success: true,
-        user: userWithoutPassword
+        user: { id: newUser[0].id, username: newUser[0].username }
       });
     }
 
+    // Regular login logic...
     const user = users[0];
-
-    // Check password
-    if (user.password !== password) {
+    if (!user || user.password !== password) {
+      await connection.end();
       return NextResponse.json({
         success: false,
-        message: 'Invalid username or password'
+        message: 'Invalid credentials'
       }, { status: 401 });
     }
 
-    const { password: _, ...userWithoutPassword } = user;
-
-    return NextResponse.json({
-      success: true,
-      user: userWithoutPassword
-    });
+    await connection.end();
+    return NextResponse.json({ success: true, user });
 
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json({
       success: false,
-      message: 'Database connection error'
+      message: `Database error: ${error.message}`
     }, { status: 500 });
-  } 
+  }
 }
