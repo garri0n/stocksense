@@ -2,38 +2,17 @@
 import { NextResponse } from 'next/server';
 import mysql from 'mysql2/promise';
 
-export async function POST(request) {
-  const body = await request.json();
-  const userId = request.headers.get('x-user-id') || body.userId;
-
-  if (!userId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-}
+export async function GET(request) {
   try {
-    // Log all headers for debugging
-    console.log('📋 All headers:', Object.fromEntries(request.headers));
+    // Get user ID from header (set by middleware) or query param
+    const userId = request.headers.get('x-user-id') || request.nextUrl.searchParams.get('userId');
     
-    // Try to get user ID from different sources
-    const userId = request.headers.get('x-user-id') || 
-                   request.headers.get('user-id') || 
-                   request.headers.get('userId');
-    
-    console.log('🆔 User ID from headers:', userId);
+    console.log('📦 GET products - User ID:', userId);
 
     if (!userId) {
-      console.log('❌ No user ID found in headers');
-      
-      // Try to get from cookie manually
-      const cookie = request.headers.get('cookie');
-      console.log('🍪 Raw cookie:', cookie);
-      
-      return NextResponse.json({ 
-        error: 'Unauthorized - No user ID' 
-      }, { status: 401 });
+      console.log('❌ No user ID found');
+      return NextResponse.json([]);
     }
-
-    const body = await request.json();
-    console.log('📦 Product data:', body);
 
     const connection = await mysql.createConnection({
       host: process.env.TIDB_HOST,
@@ -44,12 +23,87 @@ export async function POST(request) {
       ssl: { rejectUnauthorized: false }
     });
 
-    const { name, sku, category, price, current_stock, reorder_threshold, description } = body;
+    // First check if products table has user_id column
+    const [columns] = await connection.execute("SHOW COLUMNS FROM products LIKE 'user_id'");
+    
+    let rows = [];
+    if (columns.length > 0) {
+      // User_id column exists, filter by user
+      [rows] = await connection.execute(
+        'SELECT * FROM products WHERE user_id = ? ORDER BY name',
+        [userId]
+      );
+    } else {
+      // User_id column doesn't exist, get all products (temporary)
+      console.log('⚠️ user_id column not found, getting all products');
+      [rows] = await connection.execute('SELECT * FROM products ORDER BY name');
+    }
+    
+    await connection.end();
+    console.log(`✅ Found ${rows.length} products`);
+    return NextResponse.json(rows || []);
+    
+  } catch (error) {
+    console.error('❌ Products fetch error:', error);
+    return NextResponse.json([]);
+  }
+}
 
-    const [result] = await connection.execute(
-      'INSERT INTO products (name, sku, category, price, current_stock, reorder_threshold, description, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [name, sku, category || null, price, current_stock || 0, reorder_threshold || 10, description || null, userId]
-    );
+export async function POST(request) {
+  try {
+    // Get user ID from multiple sources
+    const body = await request.json();
+    const userId = request.headers.get('x-user-id') || body.userId;
+    
+    console.log('📝 POST product - User ID from header:', request.headers.get('x-user-id'));
+    console.log('📝 POST product - User ID from body:', body.userId);
+    console.log('📝 POST product - Final User ID:', userId);
+
+    if (!userId) {
+      console.log('❌ No user ID found for product creation');
+      return NextResponse.json({ 
+        error: 'Unauthorized - No user ID' 
+      }, { status: 401 });
+    }
+
+    const { name, sku, category, price, current_stock, reorder_threshold, description } = body;
+    
+    console.log('📦 Product data:', { name, sku, category, price, current_stock, reorder_threshold });
+
+    // Validate required fields
+    if (!name || !sku || !price) {
+      return NextResponse.json({ 
+        error: 'Name, SKU, and price are required' 
+      }, { status: 400 });
+    }
+
+    const connection = await mysql.createConnection({
+      host: process.env.TIDB_HOST,
+      user: '2doub9SDN1b3FY2.root',
+      password: process.env.TIDB_PASSWORD,
+      database: process.env.TIDB_DATABASE || 'stocksense_ai',
+      port: 4000,
+      ssl: { rejectUnauthorized: false }
+    });
+
+    // Check if user_id column exists
+    const [columns] = await connection.execute("SHOW COLUMNS FROM products LIKE 'user_id'");
+    
+    let result;
+    if (columns.length > 0) {
+      // User_id column exists, insert with user_id
+      [result] = await connection.execute(
+        'INSERT INTO products (name, sku, category, price, current_stock, reorder_threshold, description, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [name, sku, category || null, price, current_stock || 0, reorder_threshold || 10, description || null, userId]
+      );
+    } else {
+      // User_id column doesn't exist, insert without user_id (temporary)
+      console.log('⚠️ user_id column not found, inserting without user_id');
+      [result] = await connection.execute(
+        'INSERT INTO products (name, sku, category, price, current_stock, reorder_threshold, description) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [name, sku, category || null, price, current_stock || 0, reorder_threshold || 10, description || null]
+      );
+    }
 
     await connection.end();
 
@@ -62,6 +116,106 @@ export async function POST(request) {
 
   } catch (error) {
     console.error('❌ Product creation error:', error);
+    return NextResponse.json({ 
+      error: error.message 
+    }, { status: 500 });
+  }
+}
+
+export async function PUT(request) {
+  try {
+    const body = await request.json();
+    const userId = request.headers.get('x-user-id') || body.userId;
+    const { id, name, sku, category, price, current_stock, reorder_threshold, description } = body;
+
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const connection = await mysql.createConnection({
+      host: process.env.TIDB_HOST,
+      user: '2doub9SDN1b3FY2.root',
+      password: process.env.TIDB_PASSWORD,
+      database: process.env.TIDB_DATABASE || 'stocksense_ai',
+      port: 4000,
+      ssl: { rejectUnauthorized: false }
+    });
+
+    // Check if user_id column exists
+    const [columns] = await connection.execute("SHOW COLUMNS FROM products LIKE 'user_id'");
+    
+    let result;
+    if (columns.length > 0) {
+      [result] = await connection.execute(
+        'UPDATE products SET name = ?, sku = ?, category = ?, price = ?, current_stock = ?, reorder_threshold = ?, description = ? WHERE id = ? AND user_id = ?',
+        [name, sku, category, price, current_stock, reorder_threshold, description, id, userId]
+      );
+    } else {
+      [result] = await connection.execute(
+        'UPDATE products SET name = ?, sku = ?, category = ?, price = ?, current_stock = ?, reorder_threshold = ?, description = ? WHERE id = ?',
+        [name, sku, category, price, current_stock, reorder_threshold, description, id]
+      );
+    }
+
+    await connection.end();
+
+    return NextResponse.json({ 
+      success: true,
+      affectedRows: result.affectedRows
+    });
+
+  } catch (error) {
+    console.error('❌ Product update error:', error);
+    return NextResponse.json({ 
+      error: error.message 
+    }, { status: 500 });
+  }
+}
+
+export async function DELETE(request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    const userId = request.headers.get('x-user-id');
+
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const connection = await mysql.createConnection({
+      host: process.env.TIDB_HOST,
+      user: '2doub9SDN1b3FY2.root',
+      password: process.env.TIDB_PASSWORD,
+      database: process.env.TIDB_DATABASE || 'stocksense_ai',
+      port: 4000,
+      ssl: { rejectUnauthorized: false }
+    });
+
+    // Check if user_id column exists
+    const [columns] = await connection.execute("SHOW COLUMNS FROM products LIKE 'user_id'");
+    
+    let result;
+    if (columns.length > 0) {
+      [result] = await connection.execute(
+        'DELETE FROM products WHERE id = ? AND user_id = ?',
+        [id, userId]
+      );
+    } else {
+      [result] = await connection.execute(
+        'DELETE FROM products WHERE id = ?',
+        [id]
+      );
+    }
+
+    await connection.end();
+
+    return NextResponse.json({ 
+      success: true,
+      affectedRows: result.affectedRows
+    });
+
+  } catch (error) {
+    console.error('❌ Product deletion error:', error);
     return NextResponse.json({ 
       error: error.message 
     }, { status: 500 });
