@@ -19,6 +19,7 @@ async function getUserId() {
   return null;
 }
 
+// app/api/products/route.js - Add this at the top of your GET function
 export async function GET(request) {
   try {
     const userId = request.headers.get('x-user-id');
@@ -47,39 +48,6 @@ export async function GET(request) {
   } catch (error) {
     console.error('Products fetch error:', error);
     return NextResponse.json([]); // Return empty array on error
-  }
-}
-
-export async function GET(request) {
-  try {
-    // Get user ID from the request headers (set by middleware)
-    const userId = request.headers.get('x-user-id');
-    
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const connection = await mysql.createConnection({
-      host: process.env.TIDB_HOST,
-      user: '2doub9SDN1b3FY2.root',
-      password: process.env.TIDB_PASSWORD,
-      database: process.env.TIDB_DATABASE || 'stocksense_ai',
-      port: 4000,
-      ssl: { rejectUnauthorized: false }
-    });
-
-    // Only get products for this user
-    const [rows] = await connection.execute(
-      'SELECT * FROM products WHERE user_id = ? ORDER BY name',
-      [userId]
-    );
-    
-    await connection.end();
-    return NextResponse.json(rows || []);
-    
-  } catch (error) {
-    console.error('Products fetch error:', error);
-    return NextResponse.json([]);
   }
 }
 
