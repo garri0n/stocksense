@@ -4,13 +4,20 @@ import mysql from 'mysql2/promise';
 
 export async function GET(request) {
   try {
-    // Get user ID from header (set by middleware) or query param
-    const userId = request.headers.get('x-user-id') || request.nextUrl.searchParams.get('userId');
+    // Get user ID from header
+    const userId = request.headers.get('x-user-id');
     
-    console.log('📦 GET products - User ID:', userId);
+    console.log('📦 GET products - User ID from header:', userId);
+    
+    // Also check query param as fallback
+    const queryUserId = request.nextUrl.searchParams.get('userId');
+    console.log('📦 GET products - User ID from query:', queryUserId);
 
-    if (!userId) {
-      console.log('❌ No user ID found');
+    const finalUserId = userId || queryUserId;
+    console.log('📦 GET products - Final User ID:', finalUserId);
+
+    if (!finalUserId) {
+      console.log('❌ No user ID found for GET products');
       return NextResponse.json([]);
     }
 
@@ -23,25 +30,26 @@ export async function GET(request) {
       ssl: { rejectUnauthorized: false }
     });
 
-    // First check if products table has user_id column
-    const [columns] = await connection.execute("SHOW COLUMNS FROM products LIKE 'user_id'");
+    // First, get ALL products to see what's in the database
+    const [allProducts] = await connection.execute('SELECT * FROM products');
+    console.log('📊 All products in database:', allProducts.length);
+
+    // Then get products for this user
+    const [userProducts] = await connection.execute(
+      'SELECT * FROM products WHERE user_id = ? ORDER BY name',
+      [finalUserId]
+    );
     
-    let rows = [];
-    if (columns.length > 0) {
-      // User_id column exists, filter by user
-      [rows] = await connection.execute(
-        'SELECT * FROM products WHERE user_id = ? ORDER BY name',
-        [userId]
-      );
-    } else {
-      // User_id column doesn't exist, get all products (temporary)
-      console.log('⚠️ user_id column not found, getting all products');
-      [rows] = await connection.execute('SELECT * FROM products ORDER BY name');
+    console.log(`👤 Products for user ${finalUserId}:`, userProducts.length);
+    
+    // Log the first few products to see their user_id
+    if (allProducts.length > 0) {
+      console.log('Sample product user_ids:', allProducts.slice(0, 3).map(p => p.user_id));
     }
-    
+
     await connection.end();
-    console.log(`✅ Found ${rows.length} products`);
-    return NextResponse.json(rows || []);
+    
+    return NextResponse.json(userProducts || []);
     
   } catch (error) {
     console.error('❌ Products fetch error:', error);
