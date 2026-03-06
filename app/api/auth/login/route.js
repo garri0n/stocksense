@@ -1,17 +1,18 @@
 // app/api/auth/login/route.js
-import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import mysql from 'mysql2/promise';
+import { cookies } from 'next/headers';
 
 export async function POST(request) {
   try {
     const { username, password } = await request.json();
 
-    console.log(`Login attempt for: ${username}`);
+    console.log('🔍 Login attempt for:', username);
 
+    // Connect to TiDB
     const connection = await mysql.createConnection({
       host: process.env.TIDB_HOST,
-      user: '2doub9SDN1b3FY2.root', // From your working test
+      user: '2doub9SDN1b3FY2.root',
       password: process.env.TIDB_PASSWORD,
       database: process.env.TIDB_DATABASE || 'stocksense_ai',
       port: 4000,
@@ -21,36 +22,54 @@ export async function POST(request) {
     // First, check if users table exists
     const [tables] = await connection.execute("SHOW TABLES LIKE 'users'");
     
+    // If no users table, try 'user' table
+    let tableName = 'users';
     if (tables.length === 0) {
-      // Create users table and insert default users
-      await connection.execute(`
-        CREATE TABLE users (
-          id INT PRIMARY KEY AUTO_INCREMENT,
-          username VARCHAR(50) UNIQUE NOT NULL,
-          email VARCHAR(100) UNIQUE NOT NULL,
-          password VARCHAR(255) NOT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
-      
-      await connection.execute(
-        'INSERT INTO users (username, email, password) VALUES (?, ?, ?), (?, ?, ?)',
-        ['bro', 'bro@stocksense.ai', 'password123', 
-         'admin', 'admin@stocksense.ai', 'admin123']
-      );
-      
-      console.log('Created users table and default users');
+      const [userTable] = await connection.execute("SHOW TABLES LIKE 'user'");
+      if (userTable.length > 0) {
+        tableName = 'user';
+      } else {
+        await connection.end();
+        console.error('❌ No user table found');
+        return NextResponse.json({
+          success: false,
+          message: 'Database configuration error'
+        }, { status: 500 });
+      }
     }
 
-    // After getting the user object
-    const userForCookie = {
-      id: user.id,
-      username: user.username,
-      email: user.email
-    };
+    console.log(`📊 Using table: ${tableName}`);
 
-    // Set the cookie
-    cookies().set('user', JSON.stringify(userForCookie), {
+    // Find the user
+    const [users] = await connection.execute(
+      `SELECT * FROM ${tableName} WHERE username = ?`,
+      [username]
+    );
+
+    if (users.length === 0) {
+      await connection.end();
+      return NextResponse.json({
+        success: false,
+        message: 'Invalid username or password'
+      }, { status: 401 });
+    }
+
+    const user = users[0];
+
+    // Check password
+    if (user.password !== password) {
+      await connection.end();
+      return NextResponse.json({
+        success: false,
+        message: 'Invalid username or password'
+      }, { status: 401 });
+    }
+
+    // Remove password from response
+    const { password: _, ...userWithoutPassword } = user;
+
+    // Set cookie
+    cookies().set('user', JSON.stringify(userWithoutPassword), {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
@@ -58,33 +77,16 @@ export async function POST(request) {
       maxAge: 60 * 60 * 24 * 7 // 1 week
     });
 
-    console.log('🍪 Set user cookie for:', user.username);
+    await connection.end();
 
-    if (users.length === 0) {
-      return NextResponse.json({
-        success: false,
-        message: 'Invalid credentials'
-      }, { status: 401 });
-    }
-
-    const user = users[0];
-    
-    if (user.password !== password) {
-      return NextResponse.json({
-        success: false,
-        message: 'Invalid credentials'
-      }, { status: 401 });
-    }
-
-    const { password: _, ...userWithoutPassword } = user;
-
+    console.log('✅ Login successful for:', username);
     return NextResponse.json({
       success: true,
       user: userWithoutPassword
     });
 
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('❌ Login error:', error);
     return NextResponse.json({
       success: false,
       message: 'Database error'
