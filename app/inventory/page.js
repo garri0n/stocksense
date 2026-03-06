@@ -31,14 +31,23 @@ export default function InventoryPage() {
 
   const fetchProducts = async () => {
     try {
+      setLoading(true)
       const response = await fetch('/api/products')
       const data = await response.json()
-      setProducts(data)
       
-      const uniqueCategories = [...new Set(data.map(p => p.category).filter(Boolean))]
+      // Ensure data is an array
+      const productsArray = Array.isArray(data) ? data : []
+      setProducts(productsArray)
+      
+      // Safely extract unique categories
+      const uniqueCategories = productsArray.length > 0 
+        ? [...new Set(productsArray.map(p => p.category).filter(Boolean))]
+        : []
+      
       setCategories(uniqueCategories)
     } catch (error) {
       console.error('Error fetching products:', error)
+      setProducts([]) // Set empty array on error
     } finally {
       setLoading(false)
     }
@@ -138,15 +147,19 @@ export default function InventoryPage() {
     setSelectedProduct(null)
   }
 
-  const filteredProducts = products.filter(product => {
+  // SAFELY filter products - ensure products is an array first
+  const filteredProducts = Array.isArray(products) ? products.filter(product => {
     const matchesSearch = product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.sku?.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter
     return matchesSearch && matchesCategory
-  })
+  }) : []
 
+  // Safely calculate stats
   const totalItems = filteredProducts.reduce((sum, p) => sum + (p.current_stock || 0), 0)
-  const uniqueCategories = [...new Set(filteredProducts.map(p => p.category))].length
+  const uniqueCategories = filteredProducts.length > 0 
+    ? [...new Set(filteredProducts.map(p => p.category))].length 
+    : 0
   const lowStock = filteredProducts.filter(p => (p.current_stock || 0) < (p.reorder_threshold || 10)).length
   const outOfStock = filteredProducts.filter(p => (p.current_stock || 0) === 0).length
 
@@ -174,7 +187,7 @@ export default function InventoryPage() {
           <div className="stat-card">
             <div className="stat-title">Total Items</div>
             <div className="stat-value">{totalItems}</div>
-            <div className="stat-change">Across {products.length} products</div>
+            <div className="stat-change">Across {filteredProducts.length} products</div>
           </div>
           <div className="stat-card">
             <div className="stat-title">Categories</div>
