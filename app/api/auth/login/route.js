@@ -1,4 +1,5 @@
 // app/api/auth/login/route.js
+import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import mysql from 'mysql2/promise';
 
@@ -46,6 +47,13 @@ export async function POST(request) {
       'SELECT * FROM users WHERE username = ?',
       [username]
     );
+
+    cookies().set('user', JSON.stringify(userWithoutPassword), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 60 * 60 * 24 * 7 // 1 week
+    });
 
     await connection.end();
 

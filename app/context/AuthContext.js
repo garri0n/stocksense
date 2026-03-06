@@ -11,16 +11,13 @@ export function AuthProvider({ children }) {
   const router = useRouter()
 
   useEffect(() => {
-    // Check for stored user on mount
     try {
       const storedUser = localStorage.getItem('user')
       if (storedUser) {
-        const parsedUser = JSON.parse(storedUser)
-        setUser(parsedUser)
+        setUser(JSON.parse(storedUser))
       }
     } catch (error) {
-      console.error('Error loading user from localStorage:', error)
-      localStorage.removeItem('user')
+      console.error('Error loading user:', error)
     } finally {
       setLoading(false)
     }
@@ -37,21 +34,14 @@ export function AuthProvider({ children }) {
       const data = await response.json()
 
       if (data.success && data.user) {
-        const userData = {
-          id: data.user.id,
-          username: data.user.username,
-          email: data.user.email || ''
-        }
-        
-        setUser(userData)
-        localStorage.setItem('user', JSON.stringify(userData))
+        setUser(data.user)
+        localStorage.setItem('user', JSON.stringify(data.user))
         return { success: true }
       } else {
-        return { success: false, error: data.message || 'Login failed' }
+        return { success: false, error: data.message }
       }
     } catch (error) {
-      console.error('Login error:', error)
-      return { success: false, error: 'Connection error. Please try again.' }
+      return { success: false, error: 'Connection error' }
     }
   }
 
@@ -62,12 +52,9 @@ export function AuthProvider({ children }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userData)
       })
-
-      const data = await response.json()
-      return data
+      return await response.json()
     } catch (error) {
-      console.error('Registration error:', error)
-      return { success: false, error: 'Connection error. Please try again.' }
+      return { success: false, error: 'Connection error' }
     }
   }
 
@@ -84,17 +71,12 @@ export function AuthProvider({ children }) {
       login,
       register,
       logout,
-      isAuthenticated: !!user
+      isAuthenticated: !!user,
+      userId: user?.id
     }}>
       {children}
     </AuthContext.Provider>
   )
 }
 
-export const useAuth = () => {
-  const context = useContext(AuthContext)
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider')
-  }
-  return context
-}
+export const useAuth = () => useContext(AuthContext)

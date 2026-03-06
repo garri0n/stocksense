@@ -10,7 +10,6 @@ export async function POST(request) {
 
     // Validate input
     if (!username || !email || !password) {
-      console.log('❌ Missing fields');
       return NextResponse.json({
         success: false,
         message: 'All fields are required'
@@ -18,7 +17,6 @@ export async function POST(request) {
     }
 
     // Connect to TiDB
-    console.log('🔌 Connecting to TiDB...');
     const connection = await mysql.createConnection({
       host: process.env.TIDB_HOST,
       user: '2doub9SDN1b3FY2.root',
@@ -28,29 +26,48 @@ export async function POST(request) {
       ssl: { rejectUnauthorized: false }
     });
 
-    console.log('✅ Connected to TiDB');
+    // Check which user table exists
+    const [tables] = await connection.execute("SHOW TABLES LIKE 'users'");
+    const [userTable] = await connection.execute("SHOW TABLES LIKE 'user'");
+    
+    let tableName = 'users';
+    if (tables.length === 0 && userTable.length > 0) {
+      tableName = 'user';
+    }
+
+    console.log(`📊 Using table: ${tableName}`);
+
+    // Check if date_of_birth column exists
+    const [columns] = await connection.execute(`SHOW COLUMNS FROM ${tableName} LIKE 'date_of_birth'`);
+    const hasDateOfBirth = columns.length > 0;
 
     // Check if username or email exists
     const [existing] = await connection.execute(
-      'SELECT username, email FROM users WHERE username = ? OR email = ?',
+      `SELECT username, email FROM ${tableName} WHERE username = ? OR email = ?`,
       [username, email]
     );
 
     if (existing.length > 0) {
       await connection.end();
-      console.log('❌ User already exists:', existing[0]);
       return NextResponse.json({
         success: false,
         message: 'Username or email already exists'
       }, { status: 400 });
     }
 
-    // Insert new user
-    console.log('📝 Inserting new user...');
-    const [result] = await connection.execute(
-      'INSERT INTO users (username, email, password, date_of_birth) VALUES (?, ?, ?, ?)',
-      [username, email, password, dateOfBirth || null]
-    );
+    // Insert new user - with or without date_of_birth
+    let result;
+    if (hasDateOfBirth && dateOfBirth) {
+      [result] = await connection.execute(
+        `INSERT INTO ${tableName} (username, email, password, date_of_birth) VALUES (?, ?, ?, ?)`,
+        [username, email, password, dateOfBirth]
+      );
+    } else {
+      [result] = await connection.execute(
+        `INSERT INTO ${tableName} (username, email, password) VALUES (?, ?, ?)`,
+        [username, email, password]
+      );
+    }
 
     console.log('✅ User inserted with ID:', result.insertId);
     await connection.end();
