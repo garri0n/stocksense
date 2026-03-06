@@ -4,8 +4,10 @@ import { useState, useEffect } from 'react'
 import Sidebar from '../components/Sidebar'
 import TopBar from '../components/TopBar'
 import { formatPrice } from '../../utils/currency'
+import { useAuth } from '../context/AuthContext';
 
 export default function InventoryPage() {
+  const { user } = useAuth(); // Moved this up here
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -61,33 +63,47 @@ export default function InventoryPage() {
   }
 
   const handleAddProduct = async (e) => {
-  e.preventDefault()
-  console.log('📝 Attempting to add product:', formData)
-  
-  try {
-    const response = await fetch('/api/products', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData)
-    })
+    e.preventDefault()
+    console.log('📝 Attempting to add product:', formData)
+    console.log('👤 Current user:', user)
     
-    const data = await response.json()
-    console.log('📦 Response from server:', data)
-    
-    if (response.ok) {
-      console.log('✅ Product added successfully')
-      setShowModal(false)
-      resetForm()
-      fetchProducts()
-    } else {
-      console.error('❌ Failed to add product:', data.error)
-      alert('Error: ' + (data.error || 'Failed to add product'))
+    // Check if user is logged in
+    if (!user || !user.id) {
+      alert('You must be logged in to add products')
+      return
     }
-  } catch (error) {
-    console.error('❌ Error adding product:', error)
-    alert('Error adding product. Check console for details.')
+    
+    // Add user ID to the product data
+    const productWithUser = {
+      ...formData,
+      userId: user.id // Include user ID in the request body
+    }
+    
+    try {
+      const response = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(productWithUser)
+      })
+      
+      const data = await response.json()
+      console.log('📦 Response from server:', data)
+      
+      if (response.ok) {
+        console.log('✅ Product added successfully')
+        setShowModal(false)
+        resetForm()
+        fetchProducts()
+      } else {
+        console.error('❌ Failed to add product:', data.error)
+        alert('Error: ' + (data.error || 'Failed to add product'))
+      }
+    } catch (error) {
+      console.error('❌ Error adding product:', error)
+      alert('Error adding product. Check console for details.')
+    }
   }
-}
+  
   const handleEditProduct = async (e) => {
     e.preventDefault()
     try {

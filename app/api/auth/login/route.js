@@ -9,7 +9,6 @@ export async function POST(request) {
 
     console.log('🔍 Login attempt for:', username);
 
-    // Connect to TiDB
     const connection = await mysql.createConnection({
       host: process.env.TIDB_HOST,
       user: '2doub9SDN1b3FY2.root',
@@ -19,30 +18,9 @@ export async function POST(request) {
       ssl: { rejectUnauthorized: false }
     });
 
-    // First, check if users table exists
-    const [tables] = await connection.execute("SHOW TABLES LIKE 'users'");
-    
-    // If no users table, try 'user' table
-    let tableName = 'users';
-    if (tables.length === 0) {
-      const [userTable] = await connection.execute("SHOW TABLES LIKE 'user'");
-      if (userTable.length > 0) {
-        tableName = 'user';
-      } else {
-        await connection.end();
-        console.error('❌ No user table found');
-        return NextResponse.json({
-          success: false,
-          message: 'Database configuration error'
-        }, { status: 500 });
-      }
-    }
-
-    console.log(`📊 Using table: ${tableName}`);
-
     // Find the user
     const [users] = await connection.execute(
-      `SELECT * FROM ${tableName} WHERE username = ?`,
+      'SELECT * FROM users WHERE username = ?',
       [username]
     );
 
@@ -68,11 +46,13 @@ export async function POST(request) {
     // Remove password from response
     const { password: _, ...userWithoutPassword } = user;
 
-    // Set cookie
-    cookies().set('user', JSON.stringify(userWithoutPassword), {
+    // Set cookie with explicit options
+    cookies().set({
+      name: 'user',
+      value: JSON.stringify(userWithoutPassword),
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: 'lax', // Changed from 'strict' to 'lax'
       path: '/',
       maxAge: 60 * 60 * 24 * 7 // 1 week
     });
@@ -80,6 +60,8 @@ export async function POST(request) {
     await connection.end();
 
     console.log('✅ Login successful for:', username);
+    
+    // Return success with user data
     return NextResponse.json({
       success: true,
       user: userWithoutPassword
