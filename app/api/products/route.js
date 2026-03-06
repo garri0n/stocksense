@@ -1,31 +1,17 @@
 // app/api/products/route.js
 import { NextResponse } from 'next/server';
 import mysql from 'mysql2/promise';
-import { cookies } from 'next/headers';
 
-async function getUserId() {
-  // For server components, we need to get user from session/cookie
-  // This is simplified - in production, use proper JWT tokens
-  const cookieStore = cookies();
-  const userCookie = cookieStore.get('user');
-  if (userCookie) {
-    try {
-      const user = JSON.parse(userCookie.value);
-      return user.id;
-    } catch (e) {
-      return null;
-    }
-  }
-  return null;
-}
-
-// app/api/products/route.js - Add this at the top of your GET function
 export async function GET(request) {
   try {
+    // Get user ID from header (set by middleware)
     const userId = request.headers.get('x-user-id');
     
+    console.log('📦 Fetching products for user:', userId);
+
     if (!userId) {
-      return NextResponse.json([]); // Return empty array, not error
+      console.log('❌ No user ID found');
+      return NextResponse.json([]);
     }
 
     const connection = await mysql.createConnection({
@@ -43,24 +29,43 @@ export async function GET(request) {
     );
     
     await connection.end();
-    return NextResponse.json(rows || []); // Always return array
+    console.log(`✅ Found ${rows.length} products for user ${userId}`);
+    return NextResponse.json(rows || []);
     
   } catch (error) {
-    console.error('Products fetch error:', error);
-    return NextResponse.json([]); // Return empty array on error
+    console.error('❌ Products fetch error:', error);
+    return NextResponse.json([]);
   }
 }
 
 export async function POST(request) {
   try {
+    // Get user ID from header
     const userId = request.headers.get('x-user-id');
+    
+    console.log('📝 Adding product for user:', userId);
+
     if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      console.log('❌ No user ID found for product creation');
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Unauthorized' 
+      }, { status: 401 });
     }
 
     const body = await request.json();
+    console.log('📦 Product data:', body);
+    
     const { name, sku, category, price, current_stock, reorder_threshold, description } = body;
     
+    // Validate required fields
+    if (!name || !sku || !price) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Name, SKU, and price are required' 
+      }, { status: 400 });
+    }
+
     const connection = await mysql.createConnection({
       host: process.env.TIDB_HOST,
       user: '2doub9SDN1b3FY2.root',
@@ -73,10 +78,12 @@ export async function POST(request) {
     // Insert with user_id
     const [result] = await connection.execute(
       'INSERT INTO products (name, sku, category, price, current_stock, reorder_threshold, description, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [name, sku, category, price, current_stock || 0, reorder_threshold || 10, description || null, userId]
+      [name, sku, category || null, price, current_stock || 0, reorder_threshold || 10, description || null, userId]
     );
     
     await connection.end();
+    
+    console.log('✅ Product added with ID:', result.insertId);
     
     return NextResponse.json({ 
       success: true, 
@@ -84,13 +91,15 @@ export async function POST(request) {
     }, { status: 201 });
     
   } catch (error) {
-    console.error('Product creation error:', error);
+    console.error('❌ Product creation error:', error);
     return NextResponse.json({ 
       success: false, 
       error: error.message 
     }, { status: 500 });
   }
 }
+
+// ... (PUT and DELETE methods remain the same)
 
 export async function PUT(request) {
   try {

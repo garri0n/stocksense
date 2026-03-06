@@ -42,20 +42,23 @@ export async function POST(request) {
       console.log('Created users table and default users');
     }
 
-    // Check for the user
-    const [users] = await connection.execute(
-      'SELECT * FROM users WHERE username = ?',
-      [username]
-    );
+    // After getting the user object
+    const userForCookie = {
+      id: user.id,
+      username: user.username,
+      email: user.email
+    };
 
-    cookies().set('user', JSON.stringify(userWithoutPassword), {
+    // Set the cookie
+    cookies().set('user', JSON.stringify(userForCookie), {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
+      path: '/',
       maxAge: 60 * 60 * 24 * 7 // 1 week
     });
 
-    await connection.end();
+    console.log('🍪 Set user cookie for:', user.username);
 
     if (users.length === 0) {
       return NextResponse.json({

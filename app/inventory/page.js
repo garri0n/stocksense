@@ -61,24 +61,33 @@ export default function InventoryPage() {
   }
 
   const handleAddProduct = async (e) => {
-    e.preventDefault()
-    try {
-      const response = await fetch('/api/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      })
-      
-      if (response.ok) {
-        setShowModal(false)
-        resetForm()
-        fetchProducts()
-      }
-    } catch (error) {
-      console.error('Error adding product:', error)
+  e.preventDefault()
+  console.log('📝 Attempting to add product:', formData)
+  
+  try {
+    const response = await fetch('/api/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formData)
+    })
+    
+    const data = await response.json()
+    console.log('📦 Response from server:', data)
+    
+    if (response.ok) {
+      console.log('✅ Product added successfully')
+      setShowModal(false)
+      resetForm()
+      fetchProducts()
+    } else {
+      console.error('❌ Failed to add product:', data.error)
+      alert('Error: ' + (data.error || 'Failed to add product'))
     }
+  } catch (error) {
+    console.error('❌ Error adding product:', error)
+    alert('Error adding product. Check console for details.')
   }
-
+}
   const handleEditProduct = async (e) => {
     e.preventDefault()
     try {
