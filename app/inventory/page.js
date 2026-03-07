@@ -117,38 +117,87 @@ export default function InventoryPage() {
   }
   
   const handleEditProduct = async (e) => {
-    e.preventDefault()
-    try {
-      const response = await fetch('/api/products', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: selectedProduct.id, ...formData })
+  e.preventDefault();
+  
+  try {
+    console.log('📝 Editing product:', selectedProduct.id, formData);
+    
+    const response = await fetch('/api/products', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        id: selectedProduct.id, 
+        ...formData 
       })
+    });
+    
+    const data = await response.json();
+    console.log('📦 Edit response:', data);
+    
+    if (response.ok) {
+      // Update the product in state
+      const updatedProducts = products.map(product => 
+        product.id === selectedProduct.id 
+          ? { ...product, ...formData }
+          : product
+      );
       
-      if (response.ok) {
-        setShowModal(false)
-        resetForm()
-        fetchProducts()
-      }
-    } catch (error) {
-      console.error('Error updating product:', error)
+      setProducts(updatedProducts);
+      setShowModal(false);
+      resetForm();
+      
+      // Update categories
+      const uniqueCategories = updatedProducts.length > 0 
+        ? [...new Set(updatedProducts.map(p => p.category).filter(Boolean))]
+        : [];
+      setCategories(uniqueCategories);
+      
+      alert('Product updated successfully!');
+    } else {
+      alert('Error: ' + (data.error || 'Failed to update product'));
     }
+  } catch (error) {
+    console.error('❌ Error updating product:', error);
+    alert('Error updating product. Check console for details.');
   }
+};
 
   const handleDeleteProduct = async (id) => {
-    if (confirm('Are you sure you want to delete this product?')) {
-      try {
-        const response = await fetch(`/api/products?id=${id}`, {
-          method: 'DELETE'
-        })
-        if (response.ok) {
-          fetchProducts()
+  if (confirm('Are you sure you want to delete this product?')) {
+    try {
+      console.log('🗑️ Deleting product with ID:', id);
+      
+      const response = await fetch(`/api/products?id=${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
         }
-      } catch (error) {
-        console.error('Error deleting product:', error)
+      });
+      
+      const data = await response.json();
+      console.log('📦 Delete response:', data);
+      
+      if (response.ok) {
+        // Remove the product from state immediately
+        setProducts(products.filter(product => product.id !== id));
+        
+        // Also refresh categories
+        const updatedProducts = products.filter(p => p.id !== id);
+        const uniqueCategories = updatedProducts.length > 0 
+          ? [...new Set(updatedProducts.map(p => p.category).filter(Boolean))]
+          : [];
+        setCategories(uniqueCategories);
+        
+        alert('Product deleted successfully!');
+      } else {
+        alert('Error: ' + (data.error || 'Failed to delete product'));
       }
+    } catch (error) {
+      console.error('❌ Error deleting product:', error);
+      alert('Error deleting product. Check console for details.');
     }
   }
+};
 
   const openAddModal = () => {
     setModalMode('add')
@@ -184,13 +233,28 @@ export default function InventoryPage() {
     setSelectedProduct(null)
   }
 
-  // SAFELY filter products - ensure products is an array first
-  const filteredProducts = Array.isArray(products) ? products.filter(product => {
-    const matchesSearch = product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.sku?.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter
-    return matchesSearch && matchesCategory
-  }) : []
+  const handleSearchChange = (e) => {
+  setSearchTerm(e.target.value);
+  console.log('🔍 Search term:', e.target.value);
+};
+
+const handleCategoryChange = (e) => {
+  setCategoryFilter(e.target.value);
+  console.log('📂 Category filter:', e.target.value);
+};
+
+// SAFELY filter products - ensure products is an array first
+const filteredProducts = Array.isArray(products) ? products.filter(product => {
+  // Check if product matches search term
+  const matchesSearch = searchTerm === '' || 
+    (product.name && product.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (product.sku && product.sku.toLowerCase().includes(searchTerm.toLowerCase()));
+  
+  // Check if product matches category filter
+  const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter;
+  
+  return matchesSearch && matchesCategory;
+}) : [];
 
   // Safely calculate stats
   const totalItems = filteredProducts.reduce((sum, p) => sum + (p.current_stock || 0), 0)
@@ -256,7 +320,7 @@ export default function InventoryPage() {
             type="text"
             placeholder="Search products by name or SKU..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={handleSearchChange}  // Make sure this is set
             style={{
               flex: 1,
               padding: '12px',

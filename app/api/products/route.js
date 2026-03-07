@@ -105,8 +105,15 @@ export async function POST(request) {
 export async function PUT(request) {
   try {
     const body = await request.json();
-    const userId = request.headers.get('x-user-id') || body.userId;
+    const userId = request.headers.get('x-user-id');
+    
     const { id, name, sku, category, price, current_stock, reorder_threshold, description } = body;
+
+    console.log('📝 PUT request - Product ID:', id, 'User ID:', userId);
+
+    if (!id) {
+      return NextResponse.json({ error: 'Product ID is required' }, { status: 400 });
+    }
 
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -121,27 +128,24 @@ export async function PUT(request) {
       ssl: { rejectUnauthorized: false }
     });
 
-    // Check if user_id column exists
-    const [columns] = await connection.execute("SHOW COLUMNS FROM products LIKE 'user_id'");
-    
-    let result;
-    if (columns.length > 0) {
-      [result] = await connection.execute(
-        'UPDATE products SET name = ?, sku = ?, category = ?, price = ?, current_stock = ?, reorder_threshold = ?, description = ? WHERE id = ? AND user_id = ?',
-        [name, sku, category, price, current_stock, reorder_threshold, description, id, userId]
-      );
-    } else {
-      [result] = await connection.execute(
-        'UPDATE products SET name = ?, sku = ?, category = ?, price = ?, current_stock = ?, reorder_threshold = ?, description = ? WHERE id = ?',
-        [name, sku, category, price, current_stock, reorder_threshold, description, id]
-      );
-    }
+    // Update only if product belongs to this user
+    const [result] = await connection.execute(
+      'UPDATE products SET name = ?, sku = ?, category = ?, price = ?, current_stock = ?, reorder_threshold = ?, description = ?, updated_at = NOW() WHERE id = ? AND user_id = ?',
+      [name, sku, category || null, price, current_stock || 0, reorder_threshold || 10, description || null, id, userId]
+    );
 
     await connection.end();
 
+    if (result.affectedRows === 0) {
+      return NextResponse.json({ 
+        error: 'Product not found or unauthorized' 
+      }, { status: 404 });
+    }
+
+    console.log('✅ Product updated successfully');
     return NextResponse.json({ 
-      success: true,
-      affectedRows: result.affectedRows
+      success: true, 
+      message: 'Product updated successfully' 
     });
 
   } catch (error) {
@@ -152,11 +156,20 @@ export async function PUT(request) {
   }
 }
 
+
 export async function DELETE(request) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    
+    // Get user ID from header
     const userId = request.headers.get('x-user-id');
+    
+    console.log('🗑️ DELETE request - Product ID:', id, 'User ID:', userId);
+
+    if (!id) {
+      return NextResponse.json({ error: 'Product ID is required' }, { status: 400 });
+    }
 
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -171,27 +184,24 @@ export async function DELETE(request) {
       ssl: { rejectUnauthorized: false }
     });
 
-    // Check if user_id column exists
-    const [columns] = await connection.execute("SHOW COLUMNS FROM products LIKE 'user_id'");
-    
-    let result;
-    if (columns.length > 0) {
-      [result] = await connection.execute(
-        'DELETE FROM products WHERE id = ? AND user_id = ?',
-        [id, userId]
-      );
-    } else {
-      [result] = await connection.execute(
-        'DELETE FROM products WHERE id = ?',
-        [id]
-      );
-    }
+    // Delete only if product belongs to this user
+    const [result] = await connection.execute(
+      'DELETE FROM products WHERE id = ? AND user_id = ?',
+      [id, userId]
+    );
 
     await connection.end();
 
+    if (result.affectedRows === 0) {
+      return NextResponse.json({ 
+        error: 'Product not found or unauthorized' 
+      }, { status: 404 });
+    }
+
+    console.log('✅ Product deleted successfully');
     return NextResponse.json({ 
-      success: true,
-      affectedRows: result.affectedRows
+      success: true, 
+      message: 'Product deleted successfully' 
     });
 
   } catch (error) {
