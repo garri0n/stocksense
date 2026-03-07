@@ -116,15 +116,65 @@ export default function InventoryPage() {
     }
   }
   
-  const handleEditProduct = async (e) => {
+  const handleDeleteProduct = async (id) => {
+  if (!user || !user.id) {
+    alert('You must be logged in');
+    return;
+  }
+
+  if (confirm('Are you sure you want to delete this product?')) {
+    try {
+      console.log('🗑️ Deleting product with ID:', id, 'for user:', user.id);
+      
+      const response = await fetch(`/api/products?id=${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-ID': user.id.toString() // Send user ID in header
+        }
+      });
+      
+      const data = await response.json();
+      console.log('📦 Delete response:', data);
+      
+      if (response.ok) {
+        setProducts(products.filter(product => product.id !== id));
+        
+        // Update categories
+        const updatedProducts = products.filter(p => p.id !== id);
+        const uniqueCategories = updatedProducts.length > 0 
+          ? [...new Set(updatedProducts.map(p => p.category).filter(Boolean))]
+          : [];
+        setCategories(uniqueCategories);
+        
+        alert('Product deleted successfully!');
+      } else {
+        alert('Error: ' + (data.error || 'Failed to delete product'));
+      }
+    } catch (error) {
+      console.error('❌ Error deleting product:', error);
+      alert('Error deleting product. Check console for details.');
+    }
+  }
+};
+
+const handleEditProduct = async (e) => {
   e.preventDefault();
   
+  if (!user || !user.id) {
+    alert('You must be logged in');
+    return;
+  }
+  
   try {
-    console.log('📝 Editing product:', selectedProduct.id, formData);
+    console.log('📝 Editing product:', selectedProduct.id, 'for user:', user.id);
     
     const response = await fetch('/api/products', {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-User-ID': user.id.toString() // Send user ID in header
+      },
       body: JSON.stringify({ 
         id: selectedProduct.id, 
         ...formData 
@@ -146,12 +196,6 @@ export default function InventoryPage() {
       setShowModal(false);
       resetForm();
       
-      // Update categories
-      const uniqueCategories = updatedProducts.length > 0 
-        ? [...new Set(updatedProducts.map(p => p.category).filter(Boolean))]
-        : [];
-      setCategories(uniqueCategories);
-      
       alert('Product updated successfully!');
     } else {
       alert('Error: ' + (data.error || 'Failed to update product'));
@@ -159,43 +203,6 @@ export default function InventoryPage() {
   } catch (error) {
     console.error('❌ Error updating product:', error);
     alert('Error updating product. Check console for details.');
-  }
-};
-
-  const handleDeleteProduct = async (id) => {
-  if (confirm('Are you sure you want to delete this product?')) {
-    try {
-      console.log('🗑️ Deleting product with ID:', id);
-      
-      const response = await fetch(`/api/products?id=${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-      
-      const data = await response.json();
-      console.log('📦 Delete response:', data);
-      
-      if (response.ok) {
-        // Remove the product from state immediately
-        setProducts(products.filter(product => product.id !== id));
-        
-        // Also refresh categories
-        const updatedProducts = products.filter(p => p.id !== id);
-        const uniqueCategories = updatedProducts.length > 0 
-          ? [...new Set(updatedProducts.map(p => p.category).filter(Boolean))]
-          : [];
-        setCategories(uniqueCategories);
-        
-        alert('Product deleted successfully!');
-      } else {
-        alert('Error: ' + (data.error || 'Failed to delete product'));
-      }
-    } catch (error) {
-      console.error('❌ Error deleting product:', error);
-      alert('Error deleting product. Check console for details.');
-    }
   }
 };
 

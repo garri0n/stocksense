@@ -105,18 +105,43 @@ export async function POST(request) {
 export async function PUT(request) {
   try {
     const body = await request.json();
-    const userId = request.headers.get('x-user-id');
+    
+    // Try to get user ID from multiple sources
+    let userId = request.headers.get('x-user-id') || request.headers.get('X-User-ID');
+    
+    console.log('📝 PUT - User ID from header:', userId);
+    
+    // If no header, try to get from cookie
+    if (!userId) {
+      const cookieHeader = request.headers.get('cookie');
+      if (cookieHeader) {
+        const cookies = cookieHeader.split(';').reduce((acc, cookie) => {
+          const [key, value] = cookie.trim().split('=');
+          acc[key] = value;
+          return acc;
+        }, {});
+        
+        if (cookies.user) {
+          try {
+            const userData = JSON.parse(decodeURIComponent(cookies.user));
+            userId = userData.id;
+            console.log('👤 Got user ID from cookie:', userId);
+          } catch (e) {
+            console.error('❌ Failed to parse user cookie:', e);
+          }
+        }
+      }
+    }
     
     const { id, name, sku, category, price, current_stock, reorder_threshold, description } = body;
-
-    console.log('📝 PUT request - Product ID:', id, 'User ID:', userId);
 
     if (!id) {
       return NextResponse.json({ error: 'Product ID is required' }, { status: 400 });
     }
 
     if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      console.log('❌ No user ID found for PUT');
+      return NextResponse.json({ error: 'Unauthorized - No user ID' }, { status: 401 });
     }
 
     const connection = await mysql.createConnection({
@@ -128,7 +153,6 @@ export async function PUT(request) {
       ssl: { rejectUnauthorized: false }
     });
 
-    // Update only if product belongs to this user
     const [result] = await connection.execute(
       'UPDATE products SET name = ?, sku = ?, category = ?, price = ?, current_stock = ?, reorder_threshold = ?, description = ?, updated_at = NOW() WHERE id = ? AND user_id = ?',
       [name, sku, category || null, price, current_stock || 0, reorder_threshold || 10, description || null, id, userId]
@@ -162,17 +186,40 @@ export async function DELETE(request) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     
-    // Get user ID from header
-    const userId = request.headers.get('x-user-id');
+    // Try to get user ID from multiple sources
+    let userId = request.headers.get('x-user-id') || request.headers.get('X-User-ID');
     
-    console.log('🗑️ DELETE request - Product ID:', id, 'User ID:', userId);
+    console.log('🗑️ DELETE - Product ID:', id, 'User ID from header:', userId);
+    
+    // If no header, try to get from cookie
+    if (!userId) {
+      const cookieHeader = request.headers.get('cookie');
+      if (cookieHeader) {
+        const cookies = cookieHeader.split(';').reduce((acc, cookie) => {
+          const [key, value] = cookie.trim().split('=');
+          acc[key] = value;
+          return acc;
+        }, {});
+        
+        if (cookies.user) {
+          try {
+            const userData = JSON.parse(decodeURIComponent(cookies.user));
+            userId = userData.id;
+            console.log('👤 Got user ID from cookie:', userId);
+          } catch (e) {
+            console.error('❌ Failed to parse user cookie:', e);
+          }
+        }
+      }
+    }
 
     if (!id) {
       return NextResponse.json({ error: 'Product ID is required' }, { status: 400 });
     }
 
     if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      console.log('❌ No user ID found for DELETE');
+      return NextResponse.json({ error: 'Unauthorized - No user ID' }, { status: 401 });
     }
 
     const connection = await mysql.createConnection({
@@ -184,7 +231,6 @@ export async function DELETE(request) {
       ssl: { rejectUnauthorized: false }
     });
 
-    // Delete only if product belongs to this user
     const [result] = await connection.execute(
       'DELETE FROM products WHERE id = ? AND user_id = ?',
       [id, userId]
