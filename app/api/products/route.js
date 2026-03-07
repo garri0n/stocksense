@@ -4,17 +4,9 @@ import mysql from 'mysql2/promise';
 
 export async function GET(request) {
   try {
-    // Get user ID from header
     const userId = request.headers.get('x-user-id');
     
-    console.log('📦 GET products - User ID from header:', userId);
-    
-    // Also check if there's a user cookie directly
-    const cookieHeader = request.headers.get('cookie');
-    console.log('🍪 Cookie header:', cookieHeader);
-
     if (!userId) {
-      console.log('❌ No user ID found');
       return NextResponse.json([]);
     }
 
@@ -27,55 +19,30 @@ export async function GET(request) {
       ssl: { rejectUnauthorized: false }
     });
 
-    // Get ALL products first to see what's in DB
-    const [allProducts] = await connection.execute('SELECT id, name, user_id FROM products');
-    console.log('📊 All products in DB:', allProducts.map(p => ({ id: p.id, name: p.name, user_id: p.user_id })));
-
-    // Get products for this user
-    const [userProducts] = await connection.execute(
-      'SELECT * FROM products WHERE user_id = ? ORDER BY name',
+    const [rows] = await connection.execute(
+      'SELECT * FROM products WHERE user_id = ? ORDER BY id DESC',
       [userId]
     );
-    
-    console.log(`👤 Products for user ${userId}:`, userProducts.length);
 
     await connection.end();
-    
-    return NextResponse.json(userProducts || []);
+    return NextResponse.json(rows);
     
   } catch (error) {
-    console.error('❌ Products fetch error:', error);
+    console.error('Products fetch error:', error);
     return NextResponse.json([]);
   }
 }
 
 export async function POST(request) {
   try {
-    // Get user ID from multiple sources
     const body = await request.json();
     const userId = request.headers.get('x-user-id') || body.userId;
     
-    console.log('📝 POST product - User ID from header:', request.headers.get('x-user-id'));
-    console.log('📝 POST product - User ID from body:', body.userId);
-    console.log('📝 POST product - Final User ID:', userId);
-
     if (!userId) {
-      console.log('❌ No user ID found for product creation');
-      return NextResponse.json({ 
-        error: 'Unauthorized - No user ID' 
-      }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { name, sku, category, price, current_stock, reorder_threshold, description } = body;
-    
-    console.log('📦 Product data:', { name, sku, category, price, current_stock, reorder_threshold });
-
-    // Validate required fields
-    if (!name || !sku || !price) {
-      return NextResponse.json({ 
-        error: 'Name, SKU, and price are required' 
-      }, { status: 400 });
-    }
 
     const connection = await mysql.createConnection({
       host: process.env.TIDB_HOST,
@@ -86,28 +53,12 @@ export async function POST(request) {
       ssl: { rejectUnauthorized: false }
     });
 
-    // Check if user_id column exists
-    const [columns] = await connection.execute("SHOW COLUMNS FROM products LIKE 'user_id'");
-    
-    let result;
-    if (columns.length > 0) {
-      // User_id column exists, insert with user_id
-      [result] = await connection.execute(
-        'INSERT INTO products (name, sku, category, price, current_stock, reorder_threshold, description, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [name, sku, category || null, price, current_stock || 0, reorder_threshold || 10, description || null, userId]
-      );
-    } else {
-      // User_id column doesn't exist, insert without user_id (temporary)
-      console.log('⚠️ user_id column not found, inserting without user_id');
-      [result] = await connection.execute(
-        'INSERT INTO products (name, sku, category, price, current_stock, reorder_threshold, description) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [name, sku, category || null, price, current_stock || 0, reorder_threshold || 10, description || null]
-      );
-    }
+    const [result] = await connection.execute(
+      'INSERT INTO products (name, sku, category, price, current_stock, reorder_threshold, description, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
+      [name, sku, category || null, price, current_stock || 0, reorder_threshold || 10, description || null, userId]
+    );
 
     await connection.end();
-
-    console.log('✅ Product added with ID:', result.insertId);
 
     return NextResponse.json({ 
       success: true, 
@@ -115,10 +66,8 @@ export async function POST(request) {
     }, { status: 201 });
 
   } catch (error) {
-    console.error('❌ Product creation error:', error);
-    return NextResponse.json({ 
-      error: error.message 
-    }, { status: 500 });
+    console.error('Product creation error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
