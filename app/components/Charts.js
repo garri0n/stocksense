@@ -15,25 +15,32 @@ import {
 import { Bar, Pie, Line } from 'react-chartjs-2';
 import { formatPrice } from '../../utils/currency';
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement,
-  PointElement,
-  LineElement
-);
+// Register ChartJS components
+if (typeof window !== 'undefined') {
+  ChartJS.register(
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    Title,
+    Tooltip,
+    Legend,
+    ArcElement,
+    PointElement,
+    LineElement
+  );
+}
 
 export function SalesChart({ data }) {
+  if (!data || data.length === 0) {
+    return <div style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>No sales data available</div>
+  }
+
   const chartData = {
-    labels: data.map(item => item.date),
+    labels: data.map(item => item.date || ''),
     datasets: [
       {
         label: 'Daily Sales (₱)',
-        data: data.map(item => item.total),
+        data: data.map(item => item.total || 0),
         backgroundColor: 'rgba(102, 126, 234, 0.5)',
         borderColor: 'rgba(102, 126, 234, 1)',
         borderWidth: 2,
@@ -88,12 +95,16 @@ export function SalesChart({ data }) {
 }
 
 export function CategoryChart({ data }) {
+  if (!data || data.length === 0) {
+    return <div style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>No category data available</div>
+  }
+
   const chartData = {
-    labels: data.map(item => item.category),
+    labels: data.map(item => item.category || 'Unknown'),
     datasets: [
       {
         label: 'Sales by Category (₱)',
-        data: data.map(item => item.total_sales),
+        data: data.map(item => item.total_sales || 0),
         backgroundColor: [
           'rgba(102, 126, 234, 0.8)',
           'rgba(118, 75, 162, 0.8)',
@@ -148,13 +159,16 @@ export function CategoryChart({ data }) {
   );
 }
 
-// StockPieChart remains the same (doesn't show prices)
 export function StockPieChart({ data }) {
+  if (!data || data.length === 0) {
+    return <div style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>No stock data available</div>
+  }
+
   const chartData = {
-    labels: data.map(item => item.status),
+    labels: data.map(item => item.status || 'Unknown'),
     datasets: [
       {
-        data: data.map(item => item.count),
+        data: data.map(item => item.count || 0),
         backgroundColor: [
           'rgba(34, 197, 94, 0.8)',
           'rgba(245, 158, 11, 0.8)',
@@ -192,12 +206,16 @@ export function StockPieChart({ data }) {
 }
 
 export function TopProductsChart({ data }) {
+  if (!data || data.length === 0) {
+    return <div style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>No product data available</div>
+  }
+
   const chartData = {
-    labels: data.map(item => item.name),
+    labels: data.map(item => item.name || 'Unknown'),
     datasets: [
       {
         label: 'Units Sold',
-        data: data.map(item => item.total_sold),
+        data: data.map(item => item.total_sold || 0),
         backgroundColor: 'rgba(118, 75, 162, 0.8)',
         borderColor: 'rgba(118, 75, 162, 1)',
         borderWidth: 1
