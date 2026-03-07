@@ -7,15 +7,18 @@ export function middleware(request) {
   
   const userCookie = request.cookies.get('user');
   
-  console.log('👤 User cookie:', userCookie ? 'Found' : 'Not found');
+  console.log('👤 User cookie found:', userCookie ? 'Yes' : 'No');
   
   if (userCookie) {
     try {
       const user = JSON.parse(userCookie.value);
       console.log('✅ User parsed:', { id: user.id, username: user.username });
       
+      // Clone the request headers and add user ID
       const requestHeaders = new Headers(request.headers);
       requestHeaders.set('x-user-id', user.id.toString());
+      
+      console.log('🔧 Set x-user-id header to:', user.id);
       
       return NextResponse.next({
         request: {
@@ -28,10 +31,11 @@ export function middleware(request) {
     }
   }
   
-  console.log('⚠️ No user cookie found');
+  console.log('⚠️ No user cookie found in middleware');
   return NextResponse.next();
 }
 
+// Match all API routes
 export const config = {
   matcher: '/api/:path*',
 };

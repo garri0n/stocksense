@@ -4,12 +4,38 @@ import mysql from 'mysql2/promise';
 
 export async function GET(request) {
   try {
-    const userId = request.headers.get('x-user-id');
+    // Try to get user ID from multiple sources
+    let userId = request.headers.get('x-user-id');
     
-    console.log('📦 GET products - User ID:', userId);
-
+    console.log('📦 GET products - User ID from header:', userId);
+    
+    // If no header, try to get from cookie directly
     if (!userId) {
-      console.log('❌ No user ID found');
+      const cookieHeader = request.headers.get('cookie');
+      console.log('🍪 Cookie header:', cookieHeader);
+      
+      if (cookieHeader) {
+        const cookies = cookieHeader.split(';').reduce((acc, cookie) => {
+          const [key, value] = cookie.trim().split('=');
+          acc[key] = value;
+          return acc;
+        }, {});
+        
+        if (cookies.user) {
+          try {
+            const userData = JSON.parse(decodeURIComponent(cookies.user));
+            userId = userData.id;
+            console.log('👤 Got user ID from cookie:', userId);
+          } catch (e) {
+            console.error('❌ Failed to parse user cookie:', e);
+          }
+        }
+      }
+    }
+    
+    // If still no user ID, return empty array
+    if (!userId) {
+      console.log('❌ No user ID found in header or cookie');
       return NextResponse.json([]);
     }
 
@@ -22,21 +48,14 @@ export async function GET(request) {
       ssl: { rejectUnauthorized: false }
     });
 
-    // Simple query to get all products for this user
     const [rows] = await connection.execute(
-      'SELECT id, name, sku, category, description, price, current_stock, reorder_threshold, created_at, updated_at FROM products WHERE user_id = ? ORDER BY id DESC',
+      'SELECT * FROM products WHERE user_id = ? ORDER BY id DESC',
       [userId]
     );
-    
-    console.log(`✅ Found ${rows.length} products for user ${userId}`);
-    
-    if (rows.length > 0) {
-      console.log('📊 First product:', rows[0]);
-    }
 
     await connection.end();
     
-    // Return the data directly
+    console.log(`✅ Found ${rows.length} products for user ${userId}`);
     return NextResponse.json(rows);
     
   } catch (error) {

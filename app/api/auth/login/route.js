@@ -46,20 +46,25 @@ export async function POST(request) {
     // Remove password from response
     const { password: _, ...userWithoutPassword } = user;
 
-    // Set cookie with explicit options
+    // After getting the user object
+    const userForCookie = {
+      id: user.id,
+      username: user.username,
+      email: user.email
+    };
+
+    // Set the cookie with proper options
     cookies().set({
       name: 'user',
-      value: JSON.stringify(userWithoutPassword),
+      value: JSON.stringify(userForCookie),
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax', // Changed from 'strict' to 'lax'
+      sameSite: 'lax',
       path: '/',
       maxAge: 60 * 60 * 24 * 7 // 1 week
     });
 
-    await connection.end();
-
-    console.log('✅ Login successful for:', username);
+    console.log('🍪 Set user cookie for:', user.username);
     
     // Return success with user data
     return NextResponse.json({
