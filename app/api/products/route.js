@@ -6,7 +6,10 @@ export async function GET(request) {
   try {
     const userId = request.headers.get('x-user-id');
     
+    console.log('📦 GET products - User ID:', userId);
+
     if (!userId) {
+      console.log('❌ No user ID found');
       return NextResponse.json([]);
     }
 
@@ -19,16 +22,25 @@ export async function GET(request) {
       ssl: { rejectUnauthorized: false }
     });
 
+    // Simple query to get all products for this user
     const [rows] = await connection.execute(
-      'SELECT * FROM products WHERE user_id = ? ORDER BY id DESC',
+      'SELECT id, name, sku, category, description, price, current_stock, reorder_threshold, created_at, updated_at FROM products WHERE user_id = ? ORDER BY id DESC',
       [userId]
     );
+    
+    console.log(`✅ Found ${rows.length} products for user ${userId}`);
+    
+    if (rows.length > 0) {
+      console.log('📊 First product:', rows[0]);
+    }
 
     await connection.end();
+    
+    // Return the data directly
     return NextResponse.json(rows);
     
   } catch (error) {
-    console.error('Products fetch error:', error);
+    console.error('❌ Products fetch error:', error);
     return NextResponse.json([]);
   }
 }

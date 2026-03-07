@@ -32,28 +32,40 @@ export default function InventoryPage() {
   }, [])
 
   const fetchProducts = async () => {
-    try {
-      setLoading(true)
-      const response = await fetch('/api/products')
-      const data = await response.json()
-      
-      // Ensure data is an array
-      const productsArray = Array.isArray(data) ? data : []
-      setProducts(productsArray)
-      
-      // Safely extract unique categories
-      const uniqueCategories = productsArray.length > 0 
-        ? [...new Set(productsArray.map(p => p.category).filter(Boolean))]
-        : []
-      
-      setCategories(uniqueCategories)
-    } catch (error) {
-      console.error('Error fetching products:', error)
-      setProducts([]) // Set empty array on error
-    } finally {
-      setLoading(false)
+  try {
+    setLoading(true)
+    console.log('📡 Fetching products...')
+    
+    const response = await fetch('/api/products')
+    console.log('📥 Response status:', response.status)
+    
+    const data = await response.json()
+    console.log('📦 Raw data from API:', data)
+    
+    // Ensure data is an array
+    const productsArray = Array.isArray(data) ? data : []
+    console.log('📊 Products array:', productsArray)
+    console.log('📊 Number of products:', productsArray.length)
+    
+    if (productsArray.length > 0) {
+      console.log('📊 First product:', productsArray[0])
     }
+    
+    setProducts(productsArray)
+    
+    // Safely extract unique categories
+    const uniqueCategories = productsArray.length > 0 
+      ? [...new Set(productsArray.map(p => p.category).filter(Boolean))]
+      : []
+    
+    setCategories(uniqueCategories)
+  } catch (error) {
+    console.error('❌ Error fetching products:', error)
+    setProducts([])
+  } finally {
+    setLoading(false)
   }
+}
 
   const handleInputChange = (e) => {
     setFormData({
@@ -304,82 +316,49 @@ export default function InventoryPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredProducts.length > 0 ? (
-                filteredProducts.map(item => (
-                  <tr key={item.id}>
-                    <td>
-                      <div>
-                        <strong>{item.name}</strong>
-                        {item.description && <div style={{ fontSize: '12px', color: '#666' }}>{item.description.substring(0, 30)}...</div>}
-                      </div>
-                    </td>
-                    <td>{item.sku}</td>
-                    <td>{item.category}</td>
-                    <td>
-                      <div style={{ fontWeight: '600' }}>{item.current_stock}</div>
-                      <div style={{ fontSize: '11px', color: '#666' }}>units</div>
-                    </td>
-                    <td>{formatPrice(item.price || 0)}</td>
-                    <td>{item.reorder_threshold}</td>
-                    <td>
-                      {item.current_stock === 0 ? (
-                        <span className="status-badge status-low">Out of Stock</span>
-                      ) : item.current_stock < item.reorder_threshold ? (
-                        <span className="status-badge status-low">Low Stock</span>
-                      ) : (
-                        <span className="status-badge status-ok">In Stock</span>
-                      )}
-                    </td>
-                    <td>
-                      <button 
-                        onClick={() => openEditModal(item)}
-                        style={{ 
-                          marginRight: '10px', 
-                          color: '#667eea',
-                          background: 'none',
-                          border: 'none',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Edit
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteProduct(item.id)}
-                        style={{ 
-                          color: '#ef4444',
-                          background: 'none',
-                          border: 'none',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="8" style={{ textAlign: 'center', padding: '40px' }}>
-                    <div style={{ fontSize: '16px', color: '#666', marginBottom: '10px' }}>
-                      No products found
-                    </div>
-                    <button 
-                      onClick={openAddModal}
-                      style={{
-                        padding: '10px 20px',
-                        background: '#667eea',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '8px',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      Add Your First Product
-                    </button>
-                  </td>
-                </tr>
-              )}
-            </tbody>
+  {filteredProducts.length > 0 ? (
+    filteredProducts.map(item => (
+      <tr key={item.id}>
+        <td>
+          <div>
+            <strong>{item.name}</strong>
+            {item.description && <div style={{ fontSize: '12px', color: '#666' }}>{item.description}</div>}
+          </div>
+        </td>
+        <td>{item.sku}</td>
+        <td>{item.category}</td>
+        <td>
+          <div style={{ fontWeight: '600' }}>{item.current_stock}</div>
+        </td>
+        <td>{formatPrice(item.price)}</td>
+        <td>{item.reorder_threshold}</td>
+        <td>
+          {item.current_stock === 0 ? (
+            <span className="status-badge status-low">Out of Stock</span>
+          ) : item.current_stock < item.reorder_threshold ? (
+            <span className="status-badge status-low">Low Stock</span>
+          ) : (
+            <span className="status-badge status-ok">In Stock</span>
+          )}
+        </td>
+        <td>
+          <button onClick={() => openEditModal(item)} style={{ marginRight: '10px', color: '#667eea' }}>
+            Edit
+          </button>
+          <button onClick={() => handleDeleteProduct(item.id)} style={{ color: '#ef4444' }}>
+            Delete
+          </button>
+        </td>
+      </tr>
+    ))
+  ) : (
+    <tr>
+      <td colSpan="8" style={{ textAlign: 'center', padding: '40px' }}>
+        No products found
+      </td>
+    </tr>
+  )}
+</tbody>
           </table>
         </div>
 
