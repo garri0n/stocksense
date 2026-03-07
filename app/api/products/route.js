@@ -9,15 +9,12 @@ export async function GET(request) {
     
     console.log('📦 GET products - User ID from header:', userId);
     
-    // Also check query param as fallback
-    const queryUserId = request.nextUrl.searchParams.get('userId');
-    console.log('📦 GET products - User ID from query:', queryUserId);
+    // Also check if there's a user cookie directly
+    const cookieHeader = request.headers.get('cookie');
+    console.log('🍪 Cookie header:', cookieHeader);
 
-    const finalUserId = userId || queryUserId;
-    console.log('📦 GET products - Final User ID:', finalUserId);
-
-    if (!finalUserId) {
-      console.log('❌ No user ID found for GET products');
+    if (!userId) {
+      console.log('❌ No user ID found');
       return NextResponse.json([]);
     }
 
@@ -30,22 +27,17 @@ export async function GET(request) {
       ssl: { rejectUnauthorized: false }
     });
 
-    // First, get ALL products to see what's in the database
-    const [allProducts] = await connection.execute('SELECT * FROM products');
-    console.log('📊 All products in database:', allProducts.length);
+    // Get ALL products first to see what's in DB
+    const [allProducts] = await connection.execute('SELECT id, name, user_id FROM products');
+    console.log('📊 All products in DB:', allProducts.map(p => ({ id: p.id, name: p.name, user_id: p.user_id })));
 
-    // Then get products for this user
+    // Get products for this user
     const [userProducts] = await connection.execute(
       'SELECT * FROM products WHERE user_id = ? ORDER BY name',
-      [finalUserId]
+      [userId]
     );
     
-    console.log(`👤 Products for user ${finalUserId}:`, userProducts.length);
-    
-    // Log the first few products to see their user_id
-    if (allProducts.length > 0) {
-      console.log('Sample product user_ids:', allProducts.slice(0, 3).map(p => p.user_id));
-    }
+    console.log(`👤 Products for user ${userId}:`, userProducts.length);
 
     await connection.end();
     
