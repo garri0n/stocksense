@@ -151,10 +151,10 @@ export async function GET(request) {
     try {
       const [sales] = await connection.execute(`
         SELECT 
-          DATE(s.sale_date) as date,
-          COALESCE(SUM(s.total_amount), 0) as total
+        DATE(s.sale_date) as date,
+        COALESCE(SUM(s.total_amount), 0) as total
         FROM sales s
-        WHERE s.user_id = ? AND s.sale_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+        WHERE s.user_id = ? AND s.sale_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
         GROUP BY DATE(s.sale_date)
         ORDER BY date
       `, [userId]);

@@ -106,12 +106,8 @@ export async function PUT(request) {
   try {
     const body = await request.json();
     
-    // Try to get user ID from multiple sources
-    let userId = request.headers.get('x-user-id') || request.headers.get('X-User-ID');
-    
-    console.log('📝 PUT - User ID from header:', userId);
-    
-    // If no header, try to get from cookie
+    // Get user ID from multiple sources
+    let userId = request.headers.get('x-user-id');
     if (!userId) {
       const cookieHeader = request.headers.get('cookie');
       if (cookieHeader) {
@@ -125,14 +121,11 @@ export async function PUT(request) {
           try {
             const userData = JSON.parse(decodeURIComponent(cookies.user));
             userId = userData.id;
-            console.log('👤 Got user ID from cookie:', userId);
-          } catch (e) {
-            console.error('❌ Failed to parse user cookie:', e);
-          }
+          } catch (e) {}
         }
       }
     }
-    
+
     const { id, name, sku, category, price, current_stock, reorder_threshold, description } = body;
 
     if (!id) {
@@ -140,8 +133,7 @@ export async function PUT(request) {
     }
 
     if (!userId) {
-      console.log('❌ No user ID found for PUT');
-      return NextResponse.json({ error: 'Unauthorized - No user ID' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const connection = await mysql.createConnection({
@@ -153,24 +145,67 @@ export async function PUT(request) {
       ssl: { rejectUnauthorized: false }
     });
 
-    const [result] = await connection.execute(
-      'UPDATE products SET name = ?, sku = ?, category = ?, price = ?, current_stock = ?, reorder_threshold = ?, description = ?, updated_at = NOW() WHERE id = ? AND user_id = ?',
-      [name, sku, category || null, price, current_stock || 0, reorder_threshold || 10, description || null, id, userId]
+    // First, get the current stock to see if it changed
+    const [currentProduct] = await connection.execute(
+      'SELECT current_stock, price FROM products WHERE id = ? AND user_id = ?',
+      [id, userId]
     );
 
-    await connection.end();
-
-    if (result.affectedRows === 0) {
-      return NextResponse.json({ 
-        error: 'Product not found or unauthorized' 
-      }, { status: 404 });
+    if (currentProduct.length === 0) {
+      await connection.end();
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
 
-    console.log('✅ Product updated successfully');
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Product updated successfully' 
-    });
+    const oldStock = currentProduct[0].current_stock;
+    const newStock = parseInt(current_stock) || 0;
+    
+    // Start transaction
+    await connection.beginTransaction();
+
+    try {
+      // Update the product
+      const [result] = await connection.execute(
+        'UPDATE products SET name = ?, sku = ?, category = ?, price = ?, current_stock = ?, reorder_threshold = ?, description = ?, updated_at = NOW() WHERE id = ? AND user_id = ?',
+        [name, sku, category || null, price, newStock, reorder_threshold || 10, description || null, id, userId]
+      );
+
+      // If stock was reduced, record a sale
+      if (newStock < oldStock) {
+        const quantitySold = oldStock - newStock;
+        const totalAmount = quantitySold * price;
+
+        await connection.execute(
+          `INSERT INTO sales 
+           (product_id, quantity, unit_price, total_amount, sale_date, user_id, created_at) 
+           VALUES (?, ?, ?, ?, CURDATE(), ?, NOW())`,
+          [id, quantitySold, price, totalAmount, userId]
+        );
+
+        console.log(`💰 Sale recorded: ${quantitySold} units of ${name} for ${formatPrice(totalAmount)}`);
+      }
+
+      // Record inventory transaction
+      await connection.execute(
+        `INSERT INTO inventory_transactions 
+         (product_id, type, quantity, previous_stock, new_stock, reference, notes, created_by, created_at) 
+         VALUES (?, 'adjustment', ?, ?, ?, 'Stock Update', ?, ?, NOW())`,
+        [id, newStock - oldStock, oldStock, newStock, `Stock changed from ${oldStock} to ${newStock}`, userId]
+      );
+
+      await connection.commit();
+      await connection.end();
+
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Product updated successfully',
+        stockChanged: oldStock !== newStock,
+        quantitySold: oldStock > newStock ? oldStock - newStock : 0
+      });
+
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    }
 
   } catch (error) {
     console.error('❌ Product update error:', error);
