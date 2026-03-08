@@ -14,9 +14,11 @@ function DashboardContent() {
     totalItems: 0,
     lowStock: 0,
     totalValue: 0,
+    outOfStock: 0,
     recentItems: []
   })
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     fetchDashboardStats()
@@ -24,12 +26,26 @@ function DashboardContent() {
 
   const fetchDashboardStats = async () => {
     try {
+      setLoading(true)
+      console.log('📡 Fetching dashboard stats...')
+      
       const response = await fetch('/api/dashboard/stats')
       const data = await response.json()
-      console.log('Dashboard stats:', data)
-      setStats(data)
+      
+      console.log('📊 Dashboard data received:', data)
+      
+      setStats({
+        totalProducts: data.totalProducts || 0,
+        totalItems: data.totalItems || 0,
+        lowStock: data.lowStock || 0,
+        totalValue: data.totalValue || 0,
+        outOfStock: data.outOfStock || 0,
+        recentItems: Array.isArray(data.recentItems) ? data.recentItems : []
+      })
+      
     } catch (error) {
-      console.error('Error:', error)
+      console.error('❌ Error fetching dashboard:', error)
+      setError(error.message)
     } finally {
       setLoading(false)
     }
@@ -43,6 +59,26 @@ function DashboardContent() {
           <TopBar title={`${user?.username || 'User'}'s Dashboard`} />
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
             <div className="loading-spinner"></div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="dashboard-layout">
+        <Sidebar />
+        <div className="main-content">
+          <TopBar title={`${user?.username || 'User'}'s Dashboard`} />
+          <div style={{
+            padding: '20px',
+            background: '#fee',
+            color: '#c00',
+            borderRadius: '8px',
+            margin: '20px'
+          }}>
+            Error: {error}
           </div>
         </div>
       </div>
@@ -69,7 +105,7 @@ function DashboardContent() {
           <div className="stat-card">
             <div className="stat-title">Low Stock Items</div>
             <div className="stat-value">{stats.lowStock}</div>
-            <div className="stat-change">⚠️ Needs attention</div>
+            <div className="stat-change" style={{ color: '#f59e0b' }}>⚠️ Needs attention</div>
           </div>
           <div className="stat-card">
             <div className="stat-title">Total Value</div>
@@ -101,7 +137,7 @@ function DashboardContent() {
                   <tr key={item.id}>
                     <td>{item.name}</td>
                     <td>{item.sku}</td>
-                    <td>{item.category}</td>
+                    <td>{item.category || 'N/A'}</td>
                     <td>{item.current_stock}</td>
                     <td>{formatPrice(item.price)}</td>
                     <td>
