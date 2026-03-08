@@ -1,22 +1,26 @@
-// app/components/Charts.js
 'use client'
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement,
-  PointElement,
-  LineElement
-} from 'chart.js';
-import { Bar, Pie, Line } from 'react-chartjs-2';
+import dynamic from 'next/dynamic';
 import { formatPrice } from '../../utils/currency';
 
-// Register ChartJS components
+// Dynamically import chart components to avoid SSR issues
+const SalesChartComponent = dynamic(
+  () => import('react-chartjs-2').then(mod => mod.Line),
+  { ssr: false }
+);
+
+const CategoryChartComponent = dynamic(
+  () => import('react-chartjs-2').then(mod => mod.Bar),
+  { ssr: false }
+);
+
+const PieChartComponent = dynamic(
+  () => import('react-chartjs-2').then(mod => mod.Pie),
+  { ssr: false }
+);
+
+// Register ChartJS only on client side
 if (typeof window !== 'undefined') {
+  const { ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, PointElement, LineElement } = require('chart.js');
   ChartJS.register(
     CategoryScale,
     LinearScale,
@@ -53,23 +57,14 @@ export function SalesChart({ data }) {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: {
-        position: 'top',
-      },
-      title: {
-        display: true,
-        text: 'Sales Overview (Last 7 Days)'
-      },
+      legend: { position: 'top' },
+      title: { display: true, text: 'Sales Overview (Last 7 Days)' },
       tooltip: {
         callbacks: {
-          label: function(context) {
+          label: (context) => {
             let label = context.dataset.label || '';
-            if (label) {
-              label += ': ';
-            }
-            if (context.parsed.y !== null) {
-              label += formatPrice(context.parsed.y);
-            }
+            if (label) label += ': ';
+            if (context.parsed.y !== null) label += formatPrice(context.parsed.y);
             return label;
           }
         }
@@ -78,18 +73,14 @@ export function SalesChart({ data }) {
     scales: {
       y: {
         beginAtZero: true,
-        ticks: {
-          callback: function(value) {
-            return '₱' + value;
-          }
-        }
+        ticks: { callback: (value) => '₱' + value }
       }
     }
   };
 
   return (
     <div style={{ height: '300px', width: '100%' }}>
-      <Line data={chartData} options={options} />
+      <SalesChartComponent data={chartData} options={options} />
     </div>
   );
 }
@@ -128,23 +119,14 @@ export function CategoryChart({ data }) {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: {
-        position: 'top',
-      },
-      title: {
-        display: true,
-        text: 'Sales by Category'
-      },
+      legend: { position: 'top' },
+      title: { display: true, text: 'Sales by Category' },
       tooltip: {
         callbacks: {
-          label: function(context) {
+          label: (context) => {
             let label = context.dataset.label || '';
-            if (label) {
-              label += ': ';
-            }
-            if (context.parsed.y !== null) {
-              label += formatPrice(context.parsed.y);
-            }
+            if (label) label += ': ';
+            if (context.parsed.y !== null) label += formatPrice(context.parsed.y);
             return label;
           }
         }
@@ -154,7 +136,7 @@ export function CategoryChart({ data }) {
 
   return (
     <div style={{ height: '300px', width: '100%' }}>
-      <Bar data={chartData} options={options} />
+      <CategoryChartComponent data={chartData} options={options} />
     </div>
   );
 }
@@ -188,19 +170,14 @@ export function StockPieChart({ data }) {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: {
-        position: 'top',
-      },
-      title: {
-        display: true,
-        text: 'Stock Distribution'
-      }
+      legend: { position: 'top' },
+      title: { display: true, text: 'Stock Distribution' }
     }
   };
 
   return (
     <div style={{ height: '300px', width: '100%' }}>
-      <Pie data={chartData} options={options} />
+      <PieChartComponent data={chartData} options={options} />
     </div>
   );
 }
@@ -228,19 +205,14 @@ export function TopProductsChart({ data }) {
     maintainAspectRatio: false,
     indexAxis: 'y',
     plugins: {
-      legend: {
-        position: 'top',
-      },
-      title: {
-        display: true,
-        text: 'Top 5 Products'
-      }
+      legend: { position: 'top' },
+      title: { display: true, text: 'Top 5 Products' }
     }
   };
 
   return (
     <div style={{ height: '300px', width: '100%' }}>
-      <Bar data={chartData} options={options} />
+      <CategoryChartComponent data={chartData} options={options} />
     </div>
   );
 }
