@@ -4,6 +4,11 @@ import { useState, useEffect } from 'react'
 import Sidebar from '../components/Sidebar'
 import TopBar from '../components/TopBar'
 
+// Define formatPrice at the top level so it's available everywhere
+const formatPrice = (price) => {
+  return `₱${parseFloat(price).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`
+}
+
 export default function InsightsPage() {
   const [products, setProducts] = useState([])
   const [analytics, setAnalytics] = useState(null)
@@ -156,10 +161,6 @@ export default function InsightsPage() {
     const updated = { ...notifications, [key]: !notifications[key] }
     setNotifications(updated)
     localStorage.setItem('notifications', JSON.stringify(updated))
-  }
-
-  const formatPrice = (price) => {
-    return `₱${parseFloat(price).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`
   }
 
   if (loading) {

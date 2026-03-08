@@ -4,19 +4,17 @@ import mysql from 'mysql2/promise';
 
 export async function GET(request) {
   try {
-    // Get user ID from header
+    // Get user ID from header (set by middleware)
     const userId = request.headers.get('x-user-id');
     
-    console.log('📊 Dashboard stats - User ID:', userId);
+    console.log('Dashboard API - User ID:', userId);
 
     if (!userId) {
-      console.log('❌ No user ID found');
       return NextResponse.json({
         totalProducts: 0,
         totalItems: 0,
         lowStock: 0,
         totalValue: 0,
-        outOfStock: 0,
         recentItems: []
       });
     }
@@ -30,33 +28,27 @@ export async function GET(request) {
       ssl: { rejectUnauthorized: false }
     });
 
-    // Get total number of products
-    const [totalProductsResult] = await connection.execute(
+    // Get total products count
+    const [totalProducts] = await connection.execute(
       'SELECT COUNT(*) as count FROM products WHERE user_id = ?',
       [userId]
     );
     
     // Get total items in stock
-    const [totalItemsResult] = await connection.execute(
+    const [totalItems] = await connection.execute(
       'SELECT COALESCE(SUM(current_stock), 0) as total FROM products WHERE user_id = ?',
       [userId]
     );
     
-    // Get low stock items count
-    const [lowStockResult] = await connection.execute(
+    // Get low stock count
+    const [lowStock] = await connection.execute(
       'SELECT COUNT(*) as count FROM products WHERE user_id = ? AND current_stock < reorder_threshold',
       [userId]
     );
     
     // Get total value
-    const [totalValueResult] = await connection.execute(
+    const [totalValue] = await connection.execute(
       'SELECT COALESCE(SUM(current_stock * price), 0) as total FROM products WHERE user_id = ?',
-      [userId]
-    );
-    
-    // Get out of stock count
-    const [outOfStockResult] = await connection.execute(
-      'SELECT COUNT(*) as count FROM products WHERE user_id = ? AND current_stock = 0',
       [userId]
     );
     
@@ -68,31 +60,21 @@ export async function GET(request) {
 
     await connection.end();
 
-    const totalProducts = totalProductsResult[0]?.count || 0;
-    const totalItems = totalItemsResult[0]?.total || 0;
-    const lowStock = lowStockResult[0]?.count || 0;
-    const totalValue = totalValueResult[0]?.total || 0;
-    const outOfStock = outOfStockResult[0]?.count || 0;
-
-    console.log('📊 Stats:', { totalProducts, totalItems, lowStock, totalValue, outOfStock, recentItems: recentItems.length });
-
     return NextResponse.json({
-      totalProducts: totalProducts,
-      totalItems: totalItems,
-      lowStock: lowStock,
-      totalValue: totalValue,
-      outOfStock: outOfStock,
+      totalProducts: totalProducts[0]?.count || 0,
+      totalItems: totalItems[0]?.total || 0,
+      lowStock: lowStock[0]?.count || 0,
+      totalValue: totalValue[0]?.total || 0,
       recentItems: recentItems || []
     });
 
   } catch (error) {
-    console.error('❌ Dashboard stats error:', error);
+    console.error('Dashboard API error:', error);
     return NextResponse.json({
       totalProducts: 0,
       totalItems: 0,
       lowStock: 0,
       totalValue: 0,
-      outOfStock: 0,
       recentItems: []
     });
   }

@@ -17,9 +17,15 @@ export async function GET(request) {
       ssl: { rejectUnauthorized: false }
     });
 
-    // Get total products
+    // Get total products count
     const [totalProducts] = await connection.execute(
       'SELECT COUNT(*) as count FROM products WHERE user_id = ?',
+      [userId]
+    );
+
+    // Get total items in stock (SUM of current_stock)
+    const [totalItems] = await connection.execute(
+      'SELECT COALESCE(SUM(current_stock), 0) as total FROM products WHERE user_id = ?',
       [userId]
     );
 
@@ -41,45 +47,7 @@ export async function GET(request) {
       [userId]
     );
 
-    // Get sales by category (if you have sales data)
-    const [salesByCategory] = await connection.execute(`
-      SELECT 
-        p.category,
-        COALESCE(SUM(s.quantity * s.unit_price), 0) as total_sales
-      FROM products p
-      LEFT JOIN sales s ON p.id = s.product_id 
-        AND s.sale_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-        AND s.user_id = ?
-      WHERE p.user_id = ?
-      GROUP BY p.category
-    `, [userId, userId]);
-
-    // Get daily sales for last 7 days (if you have sales data)
-    const [dailySales] = await connection.execute(`
-      SELECT 
-        COALESCE(DATE(s.sale_date), CURDATE()) as date,
-        COALESCE(SUM(s.total_amount), 0) as total
-      FROM (
-        SELECT CURDATE() as date 
-        UNION SELECT DATE_SUB(CURDATE(), INTERVAL 1 DAY)
-        UNION SELECT DATE_SUB(CURDATE(), INTERVAL 2 DAY)
-        UNION SELECT DATE_SUB(CURDATE(), INTERVAL 3 DAY)
-        UNION SELECT DATE_SUB(CURDATE(), INTERVAL 4 DAY)
-        UNION SELECT DATE_SUB(CURDATE(), INTERVAL 5 DAY)
-        UNION SELECT DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-      ) as dates
-      LEFT JOIN sales s ON DATE(s.sale_date) = dates.date AND s.user_id = ?
-      GROUP BY dates.date
-      ORDER BY dates.date
-    `, [userId]);
-
-    // Get top products by stock value
-    const [topProducts] = await connection.execute(
-      'SELECT name, current_stock * price as total_value FROM products WHERE user_id = ? ORDER BY total_value DESC LIMIT 5',
-      [userId]
-    );
-
-    // Get stock distribution
+    // Get stock distribution for charts
     const [stockDistribution] = await connection.execute(`
       SELECT 
         CASE 
@@ -93,24 +61,75 @@ export async function GET(request) {
       GROUP BY status
     `, [userId]);
 
+    // Get top products by value
+    const [topProducts] = await connection.execute(
+      'SELECT name, current_stock as total_sold, (current_stock * price) as value FROM products WHERE user_id = ? ORDER BY value DESC LIMIT 5',
+      [userId]
+    );
+
+    // Get sales by category (if sales table exists)
+    let salesByCategory = [];
+    try {
+      const [categorySales] = await connection.execute(`
+        SELECT 
+          p.category,
+          COALESCE(SUM(s.quantity), 0) as total_sales
+        FROM products p
+        LEFT JOIN sales s ON p.id = s.product_id AND s.user_id = ?
+        WHERE p.user_id = ?
+        GROUP BY p.category
+      `, [userId, userId]);
+      salesByCategory = categorySales;
+    } catch (e) {
+      console.log('No sales table or data, using empty array');
+    }
+
+    // Get daily sales (if sales table exists)
+    let dailySales = [];
+    try {
+      const [sales] = await connection.execute(`
+        SELECT 
+          DATE(s.sale_date) as date,
+          COALESCE(SUM(s.total_amount), 0) as total
+        FROM sales s
+        WHERE s.user_id = ? AND s.sale_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+        GROUP BY DATE(s.sale_date)
+        ORDER BY date
+      `, [userId]);
+      dailySales = sales;
+    } catch (e) {
+      console.log('No sales table or data, using empty array');
+    }
+
     await connection.end();
 
-    const stockHealth = totalProducts[0].count > 0 
-      ? ((totalProducts[0].count - lowStock[0].count - outOfStock[0].count) / totalProducts[0].count * 100).toFixed(0)
-      : 0;
+    // Calculate stock health percentage
+    const total = totalProducts[0]?.count || 0;
+    const low = lowStock[0]?.count || 0;
+    const out = outOfStock[0]?.count || 0;
+    const stockHealth = total > 0 ? Math.round(((total - low - out) / total) * 100) : 0;
+
+    console.log('📊 Analytics data:', {
+      totalProducts: total,
+      totalItems: totalItems[0]?.total || 0,
+      lowStock: low,
+      outOfStock: out,
+      totalValue: totalValue[0]?.total || 0,
+      stockHealth
+    });
 
     return NextResponse.json({
-      totalProducts: totalProducts[0].count,
-      totalItems: totalProducts[0].count,
-      lowStock: lowStock[0].count,
-      outOfStock: outOfStock[0].count,
-      totalValue: totalValue[0].total,
+      totalProducts: total,
+      totalItems: totalItems[0]?.total || 0,
+      lowStock: low,
+      outOfStock: out,
+      totalValue: totalValue[0]?.total || 0,
       stockHealth: stockHealth,
       salesByCategory: salesByCategory || [],
       dailySales: dailySales || [],
       topProducts: topProducts || [],
       stockDistribution: stockDistribution.length > 0 ? stockDistribution : [
-        { status: 'In Stock', count: totalProducts[0].count },
+        { status: 'In Stock', count: total },
         { status: 'Low Stock', count: 0 },
         { status: 'Out of Stock', count: 0 }
       ]
