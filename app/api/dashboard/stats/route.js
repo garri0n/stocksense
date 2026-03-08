@@ -4,10 +4,23 @@ import mysql from 'mysql2/promise';
 
 export async function GET(request) {
   try {
-    // Get user ID from header
-    const userId = request.headers.get('x-user-id') || 60001;
+    // Get user ID from header - DON'T use a fallback
+    const userId = request.headers.get('x-user-id');
     
-    console.log('📊 Dashboard stats - User ID:', userId);
+    console.log('📊 Dashboard stats - User ID from header:', userId);
+
+    // If no user ID, return empty data
+    if (!userId) {
+      console.log('❌ No user ID found in headers');
+      return NextResponse.json({
+        totalProducts: 0,
+        totalItems: 0,
+        lowStock: 0,
+        totalValue: 0,
+        outOfStock: 0,
+        recentItems: []
+      });
+    }
 
     const connection = await mysql.createConnection({
       host: process.env.TIDB_HOST,
@@ -18,37 +31,37 @@ export async function GET(request) {
       ssl: { rejectUnauthorized: false }
     });
 
-    // Get total number of products
+    // Get total number of products for THIS user
     const [totalProducts] = await connection.execute(
       'SELECT COUNT(*) as count FROM products WHERE user_id = ?',
       [userId]
     );
     
-    // Get total items in stock (SUM of current_stock)
+    // Get total items in stock for THIS user
     const [totalItems] = await connection.execute(
       'SELECT COALESCE(SUM(current_stock), 0) as total FROM products WHERE user_id = ?',
       [userId]
     );
     
-    // Get low stock items count
+    // Get low stock items count for THIS user
     const [lowStock] = await connection.execute(
       'SELECT COUNT(*) as count FROM products WHERE user_id = ? AND current_stock < reorder_threshold',
       [userId]
     );
     
-    // Get total value
+    // Get total value for THIS user
     const [totalValue] = await connection.execute(
       'SELECT COALESCE(SUM(current_stock * price), 0) as total FROM products WHERE user_id = ?',
       [userId]
     );
     
-    // Get out of stock count
+    // Get out of stock count for THIS user
     const [outOfStock] = await connection.execute(
       'SELECT COUNT(*) as count FROM products WHERE user_id = ? AND current_stock = 0',
       [userId]
     );
     
-    // Get recent items (last 5 added/updated)
+    // Get recent items for THIS user
     const [recentItems] = await connection.execute(
       'SELECT id, name, sku, category, current_stock, price, reorder_threshold FROM products WHERE user_id = ? ORDER BY updated_at DESC LIMIT 5',
       [userId]
@@ -65,7 +78,7 @@ export async function GET(request) {
       recentItems: recentItems || []
     };
 
-    console.log('📊 Dashboard stats response:', response);
+    console.log(`📊 Dashboard stats for user ${userId}:`, response);
     return NextResponse.json(response);
 
   } catch (error) {

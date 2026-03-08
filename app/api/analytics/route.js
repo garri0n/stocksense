@@ -4,9 +4,21 @@ import mysql from 'mysql2/promise';
 
 export async function GET(request) {
   try {
-    const userId = request.headers.get('x-user-id') || 60001;
+    // Get user ID from header - DON'T use a fallback
+    const userId = request.headers.get('x-user-id');
     
-    console.log('📊 Analytics - User ID:', userId);
+    console.log('📊 Analytics - User ID from header:', userId);
+
+    // If no user ID, return empty data
+    if (!userId) {
+      console.log('❌ No user ID found in headers');
+      return NextResponse.json({
+        salesByCategory: [],
+        dailySales: [],
+        topProducts: [],
+        stockDistribution: []
+      });
+    }
 
     const connection = await mysql.createConnection({
       host: process.env.TIDB_HOST,
@@ -17,7 +29,7 @@ export async function GET(request) {
       ssl: { rejectUnauthorized: false }
     });
 
-    // Get stock distribution
+    // Get stock distribution for THIS user
     const [stockDistribution] = await connection.execute(`
       SELECT 
         CASE 
@@ -31,7 +43,7 @@ export async function GET(request) {
       GROUP BY status
     `, [userId]);
 
-    // Get top products (modify to match what your chart expects)
+    // Get top products for THIS user
     const [topProducts] = await connection.execute(`
       SELECT name, current_stock as total_sold 
       FROM products 
@@ -54,11 +66,10 @@ export async function GET(request) {
       `, [userId, userId]);
       salesByCategory = categorySales;
     } catch (e) {
-      // If sales table doesn't exist, return empty array
-      salesByCategory = [];
+      console.log('No sales table or data for user', userId);
     }
 
-    // Get daily sales for last 7 days (if sales table exists)
+    // Get daily sales for THIS user
     let dailySales = [];
     try {
       const [sales] = await connection.execute(`
@@ -71,7 +82,6 @@ export async function GET(request) {
         ORDER BY date
       `, [userId]);
       
-      // If no sales data, create empty entries for last 7 days
       if (sales.length === 0) {
         for (let i = 6; i >= 0; i--) {
           const date = new Date();
@@ -84,8 +94,7 @@ export async function GET(request) {
       }
       dailySales = sales;
     } catch (e) {
-      // If sales table doesn't exist, create empty daily sales
-      dailySales = [];
+      // Create empty daily sales
       for (let i = 6; i >= 0; i--) {
         const date = new Date();
         date.setDate(date.getDate() - i);
@@ -112,7 +121,7 @@ export async function GET(request) {
       }
     });
 
-    console.log('📊 Analytics data prepared:', {
+    console.log(`📊 Analytics data for user ${userId}:`, {
       dailySales: dailySales.length,
       topProducts: topProducts.length,
       stockDistribution: finalDistribution

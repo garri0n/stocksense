@@ -3,22 +3,22 @@ import { NextResponse } from 'next/server';
 
 export function middleware(request) {
   // Log all cookies for debugging
-  console.log('🍪 All cookies:', request.cookies.getAll());
+  console.log('🍪 Middleware - All cookies:', request.cookies.getAll());
   
   const userCookie = request.cookies.get('user');
   
-  console.log('👤 User cookie found:', userCookie ? 'Yes' : 'No');
+  console.log('👤 Middleware - User cookie found:', userCookie ? 'Yes' : 'No');
   
   if (userCookie) {
     try {
       const user = JSON.parse(userCookie.value);
-      console.log('✅ User parsed:', { id: user.id, username: user.username });
+      console.log('✅ Middleware - User parsed:', { id: user.id, username: user.username });
       
       // Clone the request headers and add user ID
       const requestHeaders = new Headers(request.headers);
       requestHeaders.set('x-user-id', user.id.toString());
       
-      console.log('🔧 Set x-user-id header to:', user.id);
+      console.log('🔧 Middleware - Set x-user-id header to:', user.id);
       
       return NextResponse.next({
         request: {
@@ -26,12 +26,12 @@ export function middleware(request) {
         },
       });
     } catch (e) {
-      console.error('❌ Error parsing user cookie:', e);
+      console.error('❌ Middleware - Error parsing user cookie:', e);
       return NextResponse.next();
     }
   }
   
-  console.log('⚠️ No user cookie found in middleware');
+  console.log('⚠️ Middleware - No user cookie found');
   return NextResponse.next();
 }
 
