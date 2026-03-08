@@ -56,7 +56,7 @@ export async function POST(request) {
     // Set the cookie with proper options
     cookies().set({
       name: 'user',
-      value: JSON.stringify(userForCookie),
+      value: JSON.stringify({ id: user.id, username: user.username }),
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

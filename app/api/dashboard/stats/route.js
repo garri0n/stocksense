@@ -7,18 +7,46 @@ export async function GET(request) {
     // Log all headers for debugging
     console.log('📋 Dashboard API - All headers:', Object.fromEntries(request.headers));
     
-    // Get user ID from header
-    const userId = request.headers.get('x-user-id');
+    // Helper function to get user ID from cookie
+    const getUserIdFromCookie = (request) => {
+      const cookieHeader = request.headers.get('cookie');
+      if (cookieHeader) {
+        const cookies = cookieHeader.split(';').reduce((acc, cookie) => {
+          const [key, value] = cookie.trim().split('=');
+          acc[key] = value;
+          return acc;
+        }, {});
+        
+        if (cookies.user) {
+          try {
+            const userData = JSON.parse(decodeURIComponent(cookies.user));
+            return userData.id;
+          } catch (e) {
+            console.error('❌ Error parsing user cookie:', e);
+          }
+        }
+      }
+      return null;
+    };
+
+    // Get user ID from header first, then try cookie
+    let userId = request.headers.get('x-user-id');
     
     console.log('📊 Dashboard API - User ID from header:', userId);
     
-    // Also check cookie directly
+    // If no header, try to get from cookie
+    if (!userId) {
+      userId = getUserIdFromCookie(request);
+      console.log('📊 Dashboard API - User ID from cookie:', userId);
+    }
+    
+    // Also check cookie directly for debugging
     const cookieHeader = request.headers.get('cookie');
     console.log('🍪 Dashboard API - Cookie header:', cookieHeader);
 
-    // If no user ID, return empty data
+    // If no user ID found at all, return empty data
     if (!userId) {
-      console.log('❌ Dashboard API - No user ID found');
+      console.log('❌ Dashboard API - No user ID found in header or cookie');
       return NextResponse.json({
         totalProducts: 0,
         totalItems: 0,
@@ -28,6 +56,8 @@ export async function GET(request) {
         recentItems: []
       });
     }
+
+    console.log(`📊 Dashboard API - Final User ID: ${userId}`);
 
     const connection = await mysql.createConnection({
       host: process.env.TIDB_HOST,
