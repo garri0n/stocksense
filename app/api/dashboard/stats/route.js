@@ -4,14 +4,21 @@ import mysql from 'mysql2/promise';
 
 export async function GET(request) {
   try {
-    // Get user ID from header - DON'T use a fallback
+    // Log all headers for debugging
+    console.log('📋 Dashboard API - All headers:', Object.fromEntries(request.headers));
+    
+    // Get user ID from header
     const userId = request.headers.get('x-user-id');
     
-    console.log('📊 Dashboard stats - User ID from header:', userId);
+    console.log('📊 Dashboard API - User ID from header:', userId);
+    
+    // Also check cookie directly
+    const cookieHeader = request.headers.get('cookie');
+    console.log('🍪 Dashboard API - Cookie header:', cookieHeader);
 
     // If no user ID, return empty data
     if (!userId) {
-      console.log('❌ No user ID found in headers');
+      console.log('❌ Dashboard API - No user ID found');
       return NextResponse.json({
         totalProducts: 0,
         totalItems: 0,
@@ -36,6 +43,7 @@ export async function GET(request) {
       'SELECT COUNT(*) as count FROM products WHERE user_id = ?',
       [userId]
     );
+    console.log(`📊 Dashboard API - Total products for user ${userId}:`, totalProducts[0]?.count);
     
     // Get total items in stock for THIS user
     const [totalItems] = await connection.execute(
@@ -63,7 +71,7 @@ export async function GET(request) {
     
     // Get recent items for THIS user
     const [recentItems] = await connection.execute(
-      'SELECT id, name, sku, category, current_stock, price, reorder_threshold FROM products WHERE user_id = ? ORDER BY updated_at DESC LIMIT 5',
+      'SELECT id, name, sku, category, current_stock, price, reorder_threshold FROM products WHERE user_id = ? ORDER BY id DESC LIMIT 5',
       [userId]
     );
 
@@ -78,11 +86,11 @@ export async function GET(request) {
       recentItems: recentItems || []
     };
 
-    console.log(`📊 Dashboard stats for user ${userId}:`, response);
+    console.log(`📊 Dashboard API - Response for user ${userId}:`, response);
     return NextResponse.json(response);
 
   } catch (error) {
-    console.error('❌ Dashboard stats error:', error);
+    console.error('❌ Dashboard API error:', error);
     return NextResponse.json({
       totalProducts: 0,
       totalItems: 0,
