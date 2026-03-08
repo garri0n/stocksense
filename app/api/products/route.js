@@ -181,7 +181,7 @@ export async function PUT(request) {
           [id, quantitySold, price, totalAmount, userId]
         );
 
-        console.log(`💰 Sale recorded: ${quantitySold} units of ${name} for ${formatPrice(totalAmount)}`);
+        console.log(`💰 Sale recorded: ${quantitySold} units of ${name} for ${totalAmount}`);
       }
 
       // Record inventory transaction
