@@ -504,17 +504,6 @@ export default function SettingsPage() {
                   <span className="slider"></span>
                 </label>
               </div>
-              <div className="setting-item">
-                <span className="setting-label">SMS Notifications</span>
-                <label className="switch">
-                  <input 
-                    type="checkbox" 
-                    checked={notifications.smsNotifications}
-                    onChange={() => handleNotificationChange('smsNotifications')}
-                  />
-                  <span className="slider"></span>
-                </label>
-              </div>
             </div>
 
             <div className="settings-card">
