@@ -457,6 +457,7 @@ const filteredProducts = Array.isArray(products) ? products.filter(product => {
                     <input
                       type="text"
                       name="sku"
+                      placeholder='ex. SKU-001'
                       value={formData.sku}
                       onChange={handleInputChange}
                       required
@@ -513,6 +514,7 @@ const filteredProducts = Array.isArray(products) ? products.filter(product => {
                   <textarea
                     name="description"
                     rows="3"
+                    placeholder='(Optional)'
                     value={formData.description}
                     onChange={handleInputChange}
                     style={{
