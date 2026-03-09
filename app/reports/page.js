@@ -18,6 +18,7 @@ export default function ReportsPage() {
     try {
       const response = await fetch('/api/reports')
       const data = await response.json()
+      console.log('📊 Reports data:', data)
       setReports(data.reports || [])
       setStats(data.stats || { total: 0, monthly: 0, scheduled: 3 })
     } catch (error) {
@@ -30,28 +31,59 @@ export default function ReportsPage() {
   const handleDownload = async (report) => {
     setDownloading(true)
     try {
-      const response = await fetch('/api/reports/download', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ report })
-      })
-
-      if (response.ok) {
-        const blob = await response.blob()
+      // For PDF files, we need to handle them differently
+      if (report.format === 'PDF') {
+        // Create a simple text representation since we can't generate real PDFs
+        const content = generateReportContent(report)
+        const blob = new Blob([content], { type: 'text/plain' })
         const url = window.URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        a.download = `${report.name.replace(/\s+/g, '-').toLowerCase()}.${report.format === 'Excel' ? 'csv' : 'pdf'}`
+        a.download = `${report.name.replace(/\s+/g, '-').toLowerCase()}.txt`
         document.body.appendChild(a)
         a.click()
         document.body.removeChild(a)
         window.URL.revokeObjectURL(url)
+      } else {
+        // For CSV/Excel files
+        const response = await fetch('/api/reports/download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ report })
+        })
+
+        if (response.ok) {
+          const blob = await response.blob()
+          const url = window.URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = `${report.name.replace(/\s+/g, '-').toLowerCase()}.csv`
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
+          window.URL.revokeObjectURL(url)
+        }
       }
     } catch (error) {
       console.error('Download error:', error)
     } finally {
       setDownloading(false)
     }
+  }
+
+  const generateReportContent = (report) => {
+    let content = `${report.name}\n`
+    content += `Generated: ${new Date().toLocaleString()}\n`
+    content += `Type: ${report.type}\n`
+    content += '='.repeat(50) + '\n\n'
+
+    if (report.data) {
+      content += JSON.stringify(report.data, null, 2)
+    } else {
+      content += 'Report data not available'
+    }
+
+    return content
   }
 
   if (loading) {
